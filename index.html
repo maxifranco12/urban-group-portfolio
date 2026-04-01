@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Urban Group — Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f6f3;--surface:#fff;--s2:#fafaf8;
+  --border:#e8e6e0;--text:#1a1916;--muted:#7a7870;--hint:#b0aea8;
+  --blue:#1a4fd6;--blue-bg:#eef2fc;--blue-lt:#f5f7fd;
+  --green:#0f7a4a;--green-bg:#eaf5ee;--green-lt:#f3faf6;
+  --amber:#8a5200;--amber-bg:#fef4e4;--amber-lt:#fffbf0;
+  --red:#b81c1c;--red-bg:#fdf0f0;--red-lt:#fff5f5;
+  --gray:#f3f2ef;--r:8px;--rl:12px;
+  --sh:0 1px 3px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);
+  --shm:0 4px 16px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh;}
+.main{overflow-y:auto;background:var(--bg);}
+.page{display:none;padding:28px 32px;}
+.page.active{display:block;}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr;}
+  .sb{display:none;}
+  .page{padding:16px;}
+  .g5{grid-template-columns:repeat(2,1fr)!important;}
+  .g4{grid-template-columns:repeat(2,1fr)!important;}
+  .g3{grid-template-columns:repeat(2,1fr)!important;}
+  .ag{grid-template-columns:1fr!important;}
+  .g2f{grid-template-columns:1fr!important;}
+  .dg{grid-template-columns:repeat(2,1fr)!important;}
+}
+
+/* ── SIDEBAR ── */
+.sb{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
+.sb-logo-t{font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;}
+.sb-logo-s{font-size:11px;color:var(--muted);margin-top:2px;}
+.sb-nav{padding:10px 8px;flex:1;overflow-y:auto;}
+.ns{margin-bottom:16px;}
+.nsl{font-size:10px;font-weight:500;color:var(--hint);letter-spacing:.1em;text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--r);cursor:pointer;font-size:13px;color:var(--muted);margin-bottom:1px;transition:all .1s;user-select:none;}
+.ni:hover{background:var(--gray);color:var(--text);}
+.ni.active{background:var(--text);color:#fff;}
+.nd{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.nb{margin-left:auto;font-size:10px;background:var(--red-bg);color:var(--red);padding:1px 7px;border-radius:20px;font-weight:500;}
+.sb-foot{padding:14px 16px;border-top:1px solid var(--border);}
+.ua{display:flex;align-items:center;gap:8px;}
+.uav{width:30px;height:30px;border-radius:50%;background:var(--text);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#fff;flex-shrink:0;}
+.uname{font-size:12px;font-weight:500;}
+.urole{font-size:11px;color:var(--muted);}
+
+/* ── PAGE HEADER ── */
+.ph{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.pt{font-size:22px;font-weight:500;}
+.ps{font-size:13px;color:var(--muted);margin-top:3px;}
+
+/* ── METRIC CARDS ── */
+.mg{display:grid;gap:12px;margin-bottom:24px;}
+.g5{grid-template-columns:repeat(5,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;box-shadow:var(--sh);min-height:96px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:box-shadow .15s;}
+.mc:hover{box-shadow:var(--shm);}
+.mc.ab{border-left:3px solid var(--blue);border-radius:0 var(--rl) var(--rl) 0;}
+.mc.ag{border-left:3px solid var(--green);border-radius:0 var(--rl) var(--rl) 0;}
+.mc.aa{border-left:3px solid #d4a017;border-radius:0 var(--rl) var(--rl) 0;}
+.mc.ar{border-left:3px solid var(--red);border-radius:0 var(--rl) var(--rl) 0;}
+.ml{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.03em;}
+.mv{font-size:18px;font-weight:500;transition:color .3s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;box-shadow:var(--sh);}
+.ch{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--s2);}
+.ct{font-size:13px;font-weight:500;}
+
+/* ── TABLES ── */
+.tw{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:10px;font-weight:500;color:var(--muted);text-align:left;padding:8px 14px;border-bottom:1px solid var(--border);letter-spacing:.05em;text-transform:uppercase;background:var(--s2);white-space:nowrap;}
+td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--s2);}
+.tn{font-weight:500;}
+.ts{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* ── BADGES ── */
+.badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:500;display:inline-block;white-space:nowrap;}
+.bb{background:var(--blue-bg);color:var(--blue);}
+.bg{background:var(--green-bg);color:var(--green);}
+.ba{background:var(--amber-bg);color:var(--amber);}
+.br{background:var(--red-bg);color:var(--red);}
+.bgr{background:var(--gray);color:var(--muted);}
+.bpur{background:#eeedfe;color:#3c3489;}
+
+/* ── PROGRESS ── */
+.prog{display:flex;align-items:center;gap:8px;}
+.pb{flex:1;height:4px;background:var(--border);border-radius:2px;min-width:40px;}
+.pf{height:4px;border-radius:2px;transition:width .5s;}
+.pt2{font-size:11px;color:var(--muted);white-space:nowrap;}
+
+/* ── BUTTONS ── */
+.btn{font-size:12px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .1s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{background:var(--gray);}
+.btn:active{transform:scale(.98);}
+.btnp{background:var(--text);color:#fff;border-color:var(--text);}
+.btnp:hover{background:#333;}
+.btns{font-size:11px;padding:4px 10px;}
+.btng{background:var(--green);color:#fff;border-color:var(--green);}
+.btng:hover{background:#0a6040;}
+.btnr{background:var(--red);color:#fff;border-color:var(--red);}
+.gap{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+
+/* ── OVERLAYS / MODALS ── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.ov.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--rl);padding:24px;width:100%;max-width:480px;border:1px solid var(--border);max-height:90vh;overflow-y:auto;box-shadow:var(--shm);}
+.modal-wide{max-width:600px;}
+.mt{font-size:16px;font-weight:500;margin-bottom:18px;}
+.fg{margin-bottom:13px;}
+.fl{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.03em;}
+.fi{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;transition:border .1s;}
+.fi:focus{border-color:var(--blue);background:#fff;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.ma{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.info-box{border-radius:var(--r);padding:10px 12px;font-size:12px;margin-bottom:0;}
+.info-blue{background:var(--blue-lt);border:1px solid var(--blue-bg);color:var(--blue);}
+.info-green{background:var(--green-lt);border:1px solid var(--green-bg);color:var(--green);}
+.info-red{background:var(--red-lt);border:1px solid var(--red-bg);color:var(--red);}
+.info-amber{background:var(--amber-lt);border:1px solid var(--amber-bg);color:var(--amber);}
+
+/* ── CONFIRM COBRO ── */
+.cp{background:var(--surface);border-radius:var(--rl);padding:26px;width:100%;max-width:440px;box-shadow:var(--shm);border:1px solid var(--border);}
+.cp-t{font-size:16px;font-weight:500;margin-bottom:6px;}
+.cp-d{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;}
+.cp-amt{font-size:32px;font-weight:500;font-family:'DM Mono',monospace;color:var(--green);margin-bottom:14px;}
+.cp-meta{font-size:12px;color:var(--muted);margin-bottom:16px;padding:12px 14px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);line-height:1.9;}
+
+/* ── ALERTS ── */
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.ac{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:13px 14px;display:flex;align-items:flex-start;gap:10px;box-shadow:var(--sh);transition:all .3s;}
+.ac.urg{border-color:var(--red);background:var(--red-lt);}
+.ac.wrn{border-color:#d4a017;background:var(--amber-lt);}
+.ac.ok{border-color:var(--green);background:var(--green-lt);}
+.ac.inf{border-color:var(--blue);background:var(--blue-lt);}
+.ac.done{opacity:.35;background:var(--gray)!important;border-color:var(--border)!important;pointer-events:none;}
+.ai{width:32px;height:32px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;font-weight:600;}
+.at{font-size:13px;font-weight:500;margin-bottom:2px;}
+.ad{font-size:11px;color:var(--muted);}
+.adate{font-size:11px;font-weight:500;margin-top:4px;}
+
+/* ── FICHA ── */
+.g2f{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;box-shadow:var(--sh);}
+.fl2{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:11px;}
+.fr2{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.fr2:last-child{border-bottom:none;}
+.fk{color:var(--muted);}
+.fv{font-weight:500;}
+.back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:18px;padding:4px 0;}
+.back:hover{color:var(--text);}
+
+/* ── CAJA HEADER ── */
+.caja-top{background:var(--text);color:#fff;border-radius:var(--rl);padding:22px 26px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+.cnum{font-size:30px;font-weight:500;font-family:'DM Mono',monospace;transition:all .4s;}
+
+/* ── DOCS ── */
+.dg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.dc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;cursor:pointer;transition:all .1s;box-shadow:var(--sh);}
+.dc:hover{border-color:var(--blue);box-shadow:var(--shm);}
+.di{width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-bottom:10px;}
+.dn{font-size:12px;font-weight:500;margin-bottom:3px;}
+.dm{font-size:11px;color:var(--muted);}
+
+/* ── MISC ── */
+.mono{font-family:'DM Mono',monospace;}
+.sl{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:22px;}
+.sl:first-child{margin-top:0;}
+.almd{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ing{color:var(--green);font-weight:500;}
+.sal{color:var(--red);font-weight:500;}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto;}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--text);font-weight:500;border-bottom-color:var(--text);}
+.strike{text-decoration:line-through;opacity:.5;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:var(--rl);font-size:13px;font-weight:500;z-index:9999;box-shadow:var(--shm);transition:opacity .3s;pointer-events:none;display:none;white-space:nowrap;}
+.toast.ok{background:#1a1916;color:#fff;}
+.toast.ok2{background:var(--green);color:#fff;}
+.toast.err{background:var(--red);color:#fff;}
+
+/* ── ANIMATIONS ── */
+@keyframes flashG{0%{background:#d4f0e0;}100%{background:transparent;}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.flash{animation:flashG .7s ease;}
+.fadein{animation:fadeIn .2s ease;}
+
+/* ── LOGIN ── */
+.lw{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.lb{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:36px;width:320px;box-shadow:var(--shm);}
+.ll{font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.ls{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.lu{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;background:var(--surface);text-align:left;margin-bottom:8px;transition:all .1s;}
+.lu:hover{border-color:var(--text);}
+.lun{font-size:13px;font-weight:500;}
+.lur{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* ── STATUS FLOW ── */
+.sf{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:13px 18px;margin-bottom:16px;box-shadow:var(--sh);overflow-x:auto;gap:0;}
+.sf-s{flex:1;text-align:center;position:relative;min-width:80px;}
+.sf-s:not(:last-child)::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--hint);font-size:14px;}
+.sf-d{width:28px;height:28px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;border:1.5px solid var(--border);}
+.sf-d.done{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+.sf-d.now{background:var(--text);color:#fff;border-color:var(--text);}
+.sf-l{font-size:10px;color:var(--muted);}
+.sf-l.now{color:var(--text);font-weight:500;}
+</style>
+</head>
+<body>
+
+<div class="toast" id="TOAST"></div>
+
+<!-- LOGIN -->
+<div id="LW" class="lw">
+  <div class="lb">
+    <div class="ll">Urban Group</div>
+    <div class="ls">Portfolio inmobiliario</div>
+    <button class="lu" onclick="login('Maxi Franco','MF','Socio')"><div class="lun">Maxi Franco</div><div class="lur">Socio · acceso completo</div></button>
+    <button class="lu" onclick="login('Tomi Slauscius','TS','Socio')"><div class="lun">Tomi Slauscius</div><div class="lur">Socio · acceso completo</div></button>
+    <button class="lu" onclick="login('Lucía','LC','Contadora')"><div class="lun">Lucía</div><div class="lur">Contadora · acceso completo</div></button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="AW" class="app" style="display:none;">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo"><div class="sb-logo-t">Urban Group</div><div class="sb-logo-s">Portfolio</div></div>
+  <nav class="sb-nav">
+    <div class="ns">
+      <div class="ni active" data-page="dashboard" onclick="nav(this)"><div class="nd" style="background:#888;"></div>Dashboard</div>
+      <div class="ni" data-page="proyectos" onclick="nav(this)"><div class="nd" style="background:#888;"></div>Proyectos</div>
+    </div>
+    <div class="ns">
+      <div class="nsl">Gestión</div>
+      <div class="ni" data-page="cobros" onclick="nav(this)"><div class="nd" style="background:#0f7a4a;"></div>Cobros</div>
+      <div class="ni" data-page="caja" onclick="nav(this)"><div class="nd" style="background:#1a4fd6;"></div>Caja USD</div>
+      <div class="ni" data-page="gastos" onclick="nav(this)"><div class="nd" style="background:#b81c1c;"></div>Gastos</div>
+    </div>
+    <div class="ns">
+      <div class="nsl">Seguimiento</div>
+      <div class="ni" data-page="alarmas" onclick="nav(this)"><div class="nd" style="background:#b81c1c;"></div>Alarmas<span class="nb" id="BC">5</span></div>
+      <div class="ni" data-page="documentos" onclick="nav(this)"><div class="nd" style="background:#888;"></div>Documentos</div>
+      <div class="ni" data-page="reportes" onclick="nav(this)"><div class="nd" style="background:#888;"></div>Reportes</div>
+    </div>
+  </nav>
+  <div class="sb-foot">
+    <div class="ua">
+      <div class="uav" id="SAV">MF</div>
+      <div><div class="uname" id="SN">Maxi Franco</div><div class="urole" id="SR">Socio</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ══════════════════════════════════════
+  DASHBOARD
+══════════════════════════════════════ -->
+<div id="p-dashboard" class="page active">
+  <div class="ph">
+    <div><div class="pt">Dashboard</div><div class="ps" id="dash-sub">Resumen · marzo 2026</div></div>
+    <div class="gap">
+      <button class="btn" onclick="om('compra')">+ Nueva compra</button>
+      <button class="btn btnp" onclick="om('pago')">+ Cargar pago</button>
+    </div>
+  </div>
+
+  <div class="mg g5">
+    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))" title="Ver proyectos"><div class="ml">Total invertido</div><div class="mv mono">U$D 2,46M</div><div class="ms">8 proyectos · sin Cuenca</div></div>
+    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))" title="Ver proyectos"><div class="ml">M² en cartera</div><div class="mv mono">4.168 m²</div><div class="ms">propios + en obra</div></div>
+    <div class="mc ag" onclick="nav(document.querySelector('[data-page=cobros]'))" title="Ver cobros"><div class="ml">Renta mensual</div><div class="mv mono" style="color:var(--green);">U$D 4.300</div><div class="ms">Fashion Collection</div></div>
+    <div class="mc ag" onclick="nav(document.querySelector('[data-page=caja]'))" title="Ver caja USD"><div class="ml">Caja USD</div><div class="mv mono" id="m-saldo" style="color:var(--blue);">U$D 138.820</div><div class="ms">confirmado · 31/03/2026</div></div>
+    <div class="mc ar" onclick="nav(document.querySelector('[data-page=alarmas]'))" title="Ver alarmas"><div class="ml">Alarmas</div><div class="mv mono" id="m-alarm" style="color:var(--red);">5</div><div class="ms" id="m-alarm-sub">2 urgentes · cobros pend.</div></div>
+  </div>
+
+  <div class="sl">Acción requerida</div>
+  <div class="ag" id="AG">
+    <div class="ac urg" id="a-arya">
+      <div class="ai" style="background:var(--red-bg);color:var(--red);">!</div>
+      <div style="flex:1;"><div class="at">ARYA Sumba — Cuota 4 vencida</div><div class="ad">U$D 2.689 · enero 2026 · sin pagar</div><div class="adate" style="color:var(--red);">Vencida · contactar ARYA</div></div>
+      <button class="btn btns btnp" onclick="om('pago')">Registrar</button>
+    </div>
+    <div class="ac wrn" id="a-cordoba">
+      <div class="ai" style="background:var(--amber-bg);color:var(--amber);">!</div>
+      <div style="flex:1;"><div class="at">Primeras cuotas Av. Córdoba</div><div class="ad">403 (Tomi) + 404 (Maxi) · Brukman</div><div class="adate" style="color:var(--amber);">1–10 abril 2026</div></div>
+      <button class="btn btns" onclick="om('pago')">Preparar</button>
+    </div>
+    <div class="ac ok" id="a-terrada">
+      <div class="ai" style="background:var(--green-bg);color:var(--green);">$</div>
+      <div style="flex:1;"><div class="at">Cobro alquiler Terrada 624</div><div class="ad">Fashion Collection · U$D 4.300</div><div class="adate" id="a-terrada-dt" style="color:var(--green);">Vence 15/03/2026 · ¿cobrado?</div></div>
+      <button class="btn btns btng" id="a-terrada-btn" onclick="abrirConfirm('t_alq')">Confirmar cobro</button>
+    </div>
+    <div class="ac wrn" id="a-cuenca">
+      <div class="ai" style="background:#eeedfe;color:#3c3489;">V</div>
+      <div style="flex:1;"><div class="at">Cuota 2 — venta local Cuenca</div><div class="ad">Comprador · U$D 8.000</div><div class="adate" id="a-cuenca-dt" style="color:var(--amber);">Vence 01/04/2026 · ¿cobrado?</div></div>
+      <button class="btn btns btng" id="a-cuenca-btn" onclick="abrirConfirm('c_q2')">Confirmar cobro</button>
+    </div>
+    <div class="ac inf" id="a-cuotas">
+      <div class="ai" style="background:var(--blue-bg);color:var(--blue);">C</div>
+      <div style="flex:1;"><div class="at">Cuotas mensuales Cerviño + India + Giribone</div><div class="ad">Cheques 45 días · 1–10 de cada mes</div><div class="adate" style="color:var(--blue);">Brukman + ISK · mensual</div></div>
+      <button class="btn btns" onclick="om('pago')">Registrar</button>
+    </div>
+  </div>
+
+  <div class="sl">Proyectos</div>
+  <div class="card">
+    <div class="ch">
+      <div class="ct">Portfolio completo</div>
+      <button class="btn btns" onclick="nav(document.querySelector('[data-page=proyectos]'))">Ver todos →</button>
+    </div>
+    <div class="tw" id="DT"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  PROYECTOS
+══════════════════════════════════════ -->
+<div id="p-proyectos" class="page">
+  <div id="PL">
+    <div class="ph">
+      <div><div class="pt">Proyectos</div><div class="ps">Portfolio completo</div></div>
+      <div class="gap">
+        <select class="btn" id="FS" onchange="rc()"><option value="">Todos los socios</option><option>Urban Group</option><option>Maxi solo</option><option>Tomi solo</option></select>
+        <select class="btn" id="FE" onchange="rc()">
+          <option value="">Todos los estados</option>
+          <option value="obra">En obra / construcción</option>
+          <option value="disponible">Disponible</option>
+          <option value="alquiler">En alquiler</option>
+          <option value="propio">Uso propio</option>
+          <option value="venta">En venta</option>
+          <option value="vendido">Vendido</option>
+        </select>
+        <button class="btn btnp" onclick="om('compra')">+ Nueva compra</button>
+      </div>
+    </div>
+    <div id="CG" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;"></div>
+  </div>
+  <div id="PF" style="display:none;"></div>
+</div>
+
+<!-- ══════════════════════════════════════
+  COBROS (Alquileres + Ventas + Inquilinos)
+══════════════════════════════════════ -->
+<div id="p-cobros" class="page">
+  <div class="ph">
+    <div><div class="pt">Cobros</div><div class="ps">Alquileres · ventas · pagarés</div></div>
+    <div class="gap">
+      <button class="btn" onclick="om('contrato')">+ Nuevo contrato</button>
+      <button class="btn" onclick="om('venta')">+ Registrar venta</button>
+      <button class="btn btnp" onclick="abrirConfirm('t_alq')">+ Registrar cobro</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="tabCobro('alq',this)">Alquileres</div>
+    <div class="tab" onclick="tabCobro('vta',this)">Ventas</div>
+    <div class="tab" onclick="tabCobro('inq',this)">Inquilinos</div>
+  </div>
+
+  <!-- ALQUILERES -->
+  <div id="tc-alq">
+    <div class="sf">
+      <div class="sf-s"><div class="sf-d done">✓</div><div class="sf-l">Propiedad lista</div></div>
+      <div class="sf-s"><div class="sf-d done">✓</div><div class="sf-l">Contrato firmado</div></div>
+      <div class="sf-s"><div class="sf-d done">✓</div><div class="sf-l">Pagaré firmado</div></div>
+      <div class="sf-s"><div class="sf-d now">$</div><div class="sf-l now">Cobro mensual</div></div>
+      <div class="sf-s"><div class="sf-d">↻</div><div class="sf-l">Renovación</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Terrada 622-624 — Fashion Collection</div><span class="badge bg">Activo</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));">
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Inquilino</div><div style="font-weight:500;">Fashion Collection</div></div>
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Renta mensual</div><div style="font-weight:500;color:var(--green);" class="mono">U$D 4.300</div><div class="ms">Dólar billete</div></div>
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Contrato</div><div style="font-weight:500;font-size:13px;">15 mar 2026 – 15 mar 2027</div></div>
+        <div style="padding:13px 16px;"><div class="ml">Yield bruto</div><div style="font-weight:500;color:var(--green);" class="mono">7,0%</div></div>
+      </div>
+      <div style="padding:9px 16px;display:flex;gap:8px;background:var(--s2);border-top:1px solid var(--border);">
+        <span class="badge bg">Contrato ✓</span>
+        <span class="badge bg">Pagaré ✓</span>
+        <button class="btn btns" style="margin-left:auto;" onclick="verDoc('Pagaré Fashion Col.')">Ver pagaré</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Historial de cobros</div><span style="font-size:12px;color:var(--muted);" id="lbl-cobrado-alq">U$D 12.000 cobrado este año</span></div>
+      <div class="tw"><table>
+        <thead><tr><th>Período</th><th>Monto</th><th>Vence</th><th>Cobrado el</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Dic 2025</td><td class="mono">U$D 4.000</td><td>15/12/2025</td><td>14/12/2025</td><td><span class="badge bg">Cobrado ✓</span></td><td></td></tr>
+          <tr><td>Ene 2026</td><td class="mono">U$D 4.000</td><td>15/01/2026</td><td>15/01/2026</td><td><span class="badge bg">Cobrado ✓</span></td><td></td></tr>
+          <tr><td>Feb 2026</td><td class="mono">U$D 4.000</td><td>15/02/2026</td><td>15/02/2026</td><td><span class="badge bg">Cobrado ✓</span></td><td></td></tr>
+          <tr id="row-mar" style="background:var(--amber-lt);">
+            <td><b>Mar 2026</b></td><td class="mono"><b>U$D 4.300</b></td><td>15/03/2026</td>
+            <td id="mar-f">—</td><td id="mar-b"><span class="badge ba">Pendiente</span></td>
+            <td id="mar-a"><button class="btn btns btng" onclick="abrirConfirm('t_alq')">Confirmar cobro</button></td>
+          </tr>
+          <tr id="row-abr" style="color:var(--hint);">
+            <td>Abr 2026</td><td class="mono">U$D 4.300</td><td>15/04/2026</td>
+            <td id="abr-f">—</td><td id="abr-b"><span class="badge bgr">Futuro</span></td><td id="abr-a"></td>
+          </tr>
+          <tr style="color:var(--hint);"><td>May 2026</td><td class="mono">U$D 4.300</td><td>15/05/2026</td><td>—</td><td><span class="badge bgr">Futuro</span></td><td></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- VENTAS -->
+  <div id="tc-vta" style="display:none;">
+    <div class="sf">
+      <div class="sf-s"><div class="sf-d done">✓</div><div class="sf-l">Acuerdo precio</div></div>
+      <div class="sf-s"><div class="sf-d done">✓</div><div class="sf-l">Boleto firmado</div></div>
+      <div class="sf-s"><div class="sf-d now">$</div><div class="sf-l now">Cobro cuotas</div></div>
+      <div class="sf-s"><div class="sf-d">✓</div><div class="sf-l">Escritura</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Local Cuenca Obra — En venta</div><span class="badge bpur">En cobro</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));">
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Comprador</div><div style="font-weight:500;">Pendiente carga</div></div>
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Ya cobrado</div><div style="font-weight:500;color:var(--green);" class="mono" id="vt-cobrado">U$D 8.000</div></div>
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Próximo cobro</div><div style="font-weight:500;font-size:13px;" id="vt-prox">U$D 8.000 · 01/04/2026</div></div>
+        <div style="padding:13px 16px;"><div class="ml">Estado</div><div style="font-weight:500;">En cuotas</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Plan de cobro</div><div style="font-size:12px;color:var(--muted);">Solo entra a caja cuando confirmás</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>Concepto</th><th>Monto</th><th>Vence</th><th>Cobrado el</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Seña</td><td class="mono">U$D 8.000</td><td>—</td><td>—</td><td><span class="badge bg">Cobrado ✓</span></td><td></td></tr>
+          <tr id="row-c2" style="background:var(--amber-lt);">
+            <td><b>2</b></td><td>Cuota 2</td><td class="mono"><b>U$D 8.000</b></td><td>01/04/2026</td>
+            <td id="c2-f">—</td><td id="c2-b"><span class="badge ba">Pendiente</span></td>
+            <td id="c2-a"><button class="btn btns btng" onclick="abrirConfirm('c_q2')">Confirmar cobro</button></td>
+          </tr>
+          <tr style="color:var(--hint);"><td>3</td><td>Cuota 3</td><td class="mono">U$D 8.000</td><td>01/05/2026</td><td>—</td><td><span class="badge bgr">Futuro</span></td><td></td></tr>
+          <tr style="color:var(--hint);"><td>4</td><td>Cuota 4</td><td class="mono">U$D 8.000</td><td>01/06/2026</td><td>—</td><td><span class="badge bgr">Futuro</span></td><td></td></tr>
+          <tr style="color:var(--hint);"><td>5</td><td>Saldo escritura</td><td class="mono">A definir</td><td>Escritura</td><td>—</td><td><span class="badge bgr">Futuro</span></td><td></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- INQUILINOS -->
+  <div id="tc-inq" style="display:none;">
+    <div class="card">
+      <div class="ch">
+        <div class="ct">Fashion Collection — Terrada 622-624 UF2</div>
+        <div class="gap"><span class="badge bg">Activo</span><button class="btn btns" onclick="om('inquilino')">+ Nuevo inquilino</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));">
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Contrato</div><div style="font-weight:500;font-size:13px;">15 mar 2026 – 15 mar 2027</div></div>
+        <div style="padding:13px 16px;border-right:1px solid var(--border);"><div class="ml">Renta</div><div style="font-weight:500;color:var(--green);" class="mono">U$D 4.300/mes billete</div></div>
+        <div style="padding:13px 16px;"><div class="ml">Gastos</div><div style="font-weight:500;">A cargo del inquilino</div></div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);background:var(--s2);display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge bg" style="padding:5px 12px;">Contrato firmado ✓</span>
+        <span class="badge bg" style="padding:5px 12px;">Pagaré firmado ✓</span>
+        <span class="badge ba" style="padding:5px 12px;">Seguro de caución — pendiente</span>
+        <button class="btn btns" style="margin-left:auto;" onclick="om('doc')">+ Subir doc.</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Historial de pagos</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Período</th><th>Monto</th><th>Estado</th><th>Días mora</th></tr></thead>
+        <tbody>
+          <tr><td>Dic 2025</td><td class="mono">U$D 4.000</td><td><span class="badge bg">Cobrado</span></td><td>—</td></tr>
+          <tr><td>Ene 2026</td><td class="mono">U$D 4.000</td><td><span class="badge bg">Cobrado</span></td><td>—</td></tr>
+          <tr><td>Feb 2026</td><td class="mono">U$D 4.000</td><td><span class="badge bg">Cobrado</span></td><td>—</td></tr>
+          <tr style="background:var(--amber-lt);"><td><b>Mar 2026</b></td><td class="mono">U$D 4.300</td><td><span class="badge ba">Pendiente</span></td><td id="inq-mora">—</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  CAJA USD
+══════════════════════════════════════ -->
+<div id="p-caja" class="page">
+  <div class="ph">
+    <div><div class="pt">Caja USD</div><div class="ps">Solo entra lo que vos confirmás · inmuebles únicamente</div></div>
+    <div class="gap"><button class="btn" onclick="om('ingreso')">+ Ingreso</button><button class="btn btnp" onclick="om('egreso')">+ Egreso</button></div>
+  </div>
+
+  <div class="caja-top">
+    <div>
+      <div style="font-size:11px;opacity:.6;margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em;">Saldo confirmado · Urban Group</div>
+      <div class="cnum" id="caja-num">U$D 138.820</div>
+      <div style="font-size:12px;opacity:.5;margin-top:4px;">Actualizado al 31/03/2026</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;opacity:.6;margin-bottom:5px;">Por confirmar</div>
+      <div style="font-size:20px;font-weight:500;color:#ffd700;" class="mono" id="caja-pend">+ U$D 12.300</div>
+      <div style="font-size:11px;opacity:.5;margin-top:3px;">alquiler mar + cuota Cuenca</div>
+    </div>
+  </div>
+
+  <div class="sl">Pendientes — tu confirmación requerida</div>
+  <div class="card" style="border-color:#d4a017;" id="card-pend">
+    <div class="ch" style="background:var(--amber-lt);">
+      <div class="ct" style="color:var(--amber);">Cobros pendientes de confirmación</div>
+      <span style="font-size:12px;color:var(--amber);" id="lbl-pend-total">U$D 12.300</span>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Concepto</th><th>Proyecto</th><th>Monto</th><th>Vence</th><th></th></tr></thead>
+      <tbody id="PEND">
+        <tr id="prow-t"><td>Alquiler marzo 2026</td><td>Terrada 624</td><td class="mono ing">U$D 4.300</td><td>15/03/2026</td><td><button class="btn btns btng" onclick="abrirConfirm('t_alq')">Confirmar ✓</button></td></tr>
+        <tr id="prow-c"><td>Cuota 2 — venta Cuenca</td><td>Cuenca Obra</td><td class="mono ing">U$D 8.000</td><td>01/04/2026</td><td><button class="btn btns btng" onclick="abrirConfirm('c_q2')">Confirmar ✓</button></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="sl">Movimientos confirmados · 2026</div>
+  <div class="card">
+    <div class="ch"><div class="ct">Historial</div>
+      <select class="btn btns" onchange="filtCaja(this.value)"><option value="">Todos</option><option value="ing">Ingresos</option><option value="eg">Egresos</option></select>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Ingreso</th><th>Egreso</th><th>Saldo</th></tr></thead>
+      <tbody id="CAJAMOV">
+        <tr><td>31-mar</td><td>kimikal pagaré</td><td><span class="badge bg">Pagaré</span></td><td class="mono ing">+2.400</td><td></td><td class="mono">138.820</td></tr>
+        <tr><td>30-mar</td><td>facu alfie hilado</td><td><span class="badge bg">Ingreso</span></td><td class="mono ing">+7.800</td><td></td><td class="mono">136.420</td></tr>
+        <tr><td>27-mar</td><td>Gastón Duek pagaré</td><td><span class="badge bg">Pagaré</span></td><td class="mono ing">+9.000</td><td></td><td class="mono">128.620</td></tr>
+        <tr><td>18-mar</td><td>Comisión blum met</td><td><span class="badge bg">Ingreso</span></td><td class="mono ing">+2.620</td><td></td><td class="mono">119.620</td></tr>
+        <tr><td>16-mar</td><td>Terrada 624 · alquiler feb</td><td><span class="badge bg">Alquiler</span></td><td class="mono ing">+4.300</td><td></td><td class="mono">117.000</td></tr>
+        <tr><td>13-mar</td><td>Hilado Pablo museyri</td><td><span class="badge bg">Ingreso</span></td><td class="mono ing">+4.000</td><td></td><td class="mono">112.700</td></tr>
+        <tr><td>13-mar</td><td>Aporte caja Urban Textil</td><td><span class="badge bb">Aporte</span></td><td class="mono ing">+50.000</td><td></td><td class="mono">108.700</td></tr>
+        <tr><td>26-feb</td><td>Retorno seña</td><td><span class="badge bg">Ingreso</span></td><td class="mono ing">+1.000</td><td></td><td class="mono">58.700</td></tr>
+        <tr><td>25-feb</td><td>Reserva seña cucha</td><td><span class="badge br">Egreso</span></td><td></td><td class="mono sal">−1.000</td><td class="mono">57.700</td></tr>
+        <tr><td>25-feb</td><td>Gastón Duek segundo pagaré</td><td><span class="badge bg">Pagaré</span></td><td class="mono ing">+9.000</td><td></td><td class="mono">58.700</td></tr>
+        <tr><td>6-ene</td><td>Gastón Duek primer pagaré</td><td><span class="badge bg">Pagaré</span></td><td class="mono ing">+9.000</td><td></td><td class="mono">49.700</td></tr>
+        <tr><td>6-ene</td><td>Aporte caja Urban Textil</td><td><span class="badge bb">Aporte</span></td><td class="mono ing">+34.000</td><td></td><td class="mono">40.700</td></tr>
+        <tr><td>5-ene</td><td>Pagué yumi urb005</td><td><span class="badge br">Egreso</span></td><td></td><td class="mono sal">−17.000</td><td class="mono">6.700</td></tr>
+        <tr><td>5-ene</td><td>Pagué yumi urb023</td><td><span class="badge br">Egreso</span></td><td></td><td class="mono sal">−17.000</td><td class="mono">23.700</td></tr>
+        <tr><td>1-ene</td><td>Saldo inicial 2025</td><td><span class="badge bgr">Inicio</span></td><td class="mono ing">40.700</td><td></td><td class="mono">40.700</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  GASTOS
+══════════════════════════════════════ -->
+<div id="p-gastos" class="page">
+  <div class="ph">
+    <div><div class="pt">Gastos</div><div class="ps">ABL · expensas · impuestos · mantenimiento · honorarios</div></div>
+    <button class="btn btnp" onclick="om('gasto')">+ Registrar gasto</button>
+  </div>
+  <div class="mg g4">
+    <div class="mc ar"><div class="ml">Egresos este año</div><div class="mv mono" style="color:var(--red);" id="g-total">U$D 35.000</div><div class="ms">todos los proyectos</div></div>
+    <div class="mc aa"><div class="ml">Este mes</div><div class="mv mono" style="color:var(--amber);">U$D 0</div><div class="ms">marzo 2026</div></div>
+    <div class="mc ar"><div class="ml">Pendientes</div><div class="mv mono" style="color:var(--red);">U$D 0</div><div class="ms">sin gastos vencidos</div></div>
+    <div class="mc ab"><div class="ml">Más grande</div><div class="mv" style="font-size:14px;">Yumi urb</div><div class="ms">ene · U$D 17.000 × 2</div></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+    <span style="font-size:12px;color:var(--muted);">Cargar rápido:</span>
+    <button class="btn btns" onclick="om('gasto')">ABL</button>
+    <button class="btn btns" onclick="om('gasto')">Expensas</button>
+    <button class="btn btns" onclick="om('gasto')">Impuesto sellos</button>
+    <button class="btn btns" onclick="om('gasto')">Escribanía</button>
+    <button class="btn btns" onclick="om('gasto')">Comisión</button>
+    <button class="btn btns" onclick="om('gasto')">Mantenimiento</button>
+    <button class="btn btns" onclick="om('gasto')">Otro</button>
+  </div>
+
+  <div class="card">
+    <div class="ch">
+      <div class="ct">Gastos registrados · 2026</div>
+      <select class="btn btns"><option>Todos los proyectos</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option></select>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Descripción</th><th>USD</th><th>Estado</th></tr></thead>
+      <tbody id="GASTOS">
+        <tr><td>5-ene</td><td>General</td><td><span class="badge br">Egreso</span></td><td>Pagué yumi urb023</td><td class="mono sal">−17.000</td><td><span class="badge bg">Pagado</span></td></tr>
+        <tr><td>5-ene</td><td>General</td><td><span class="badge br">Egreso</span></td><td>Pagué yumi urb005</td><td class="mono sal">−17.000</td><td><span class="badge bg">Pagado</span></td></tr>
+        <tr><td>25-feb</td><td>General</td><td><span class="badge ba">Seña</span></td><td>Reserva seña cucha</td><td class="mono sal">−1.000</td><td><span class="badge bg">Retornado</span></td></tr>
+      </tbody>
+    </table></div>
+    <div style="padding:14px 16px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border);">
+      Cargá ABL, expensas e impuestos de cada propiedad con el botón "+ Registrar gasto"
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div class="ct">Gastos esperados próximos meses</div></div>
+    <div class="tw"><table>
+      <thead><tr><th>Propiedad</th><th>Tipo</th><th>Frecuencia</th><th>Monto</th><th>Próximo venc.</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Terrada 624 UF2</td><td>ABL</td><td>Bimestral</td><td class="mono">A cargar</td><td>—</td><td><button class="btn btns" onclick="om('gasto')">Cargar</button></td></tr>
+        <tr><td>Terrada 526 Local 2</td><td>ABL + Expensas</td><td>Mensual</td><td class="mono">A cargar</td><td>—</td><td><button class="btn btns" onclick="om('gasto')">Cargar</button></td></tr>
+        <tr><td>Giribone 2363</td><td>Cuota obra ISK</td><td>Mensual</td><td class="mono">~U$D 25.000</td><td>1–10 abr 2026</td><td><button class="btn btns" onclick="om('pago')">Registrar</button></td></tr>
+        <tr><td>ARYA Sumba D21</td><td>Cuota mensual</td><td>Mensual</td><td class="mono">U$D 2.689</td><td style="color:var(--red);">ene 2026 VENCIDA</td><td><button class="btn btns btnr" onclick="om('pago')">Urgente</button></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  ALARMAS
+══════════════════════════════════════ -->
+<div id="p-alarmas" class="page">
+  <div class="ph"><div><div class="pt">Alarmas</div><div class="ps">Vencimientos y recordatorios</div></div><button class="btn btnp" onclick="om('alarma')">+ Nueva alarma</button></div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr><th></th><th>Alarma</th><th>Proyecto</th><th>Vence</th><th>Tipo</th><th></th></tr></thead>
+    <tbody>
+      <tr id="alm-arya"><td><div class="almd" style="background:var(--red);"></div></td><td><div class="tn">ARYA Sumba D21 — Cuota 4 vencida</div><div class="ts">U$D 2.689</div></td><td>ARYA Sumba</td><td style="color:var(--red);font-weight:500;">Ene 2026 VENCIDA</td><td><span class="badge br">Urgente</span></td><td><div class="gap"><button class="btn btns btnp" onclick="om('pago')">Registrar</button><button class="btn btns" onclick="RA('alm-arya',this)">Resolver</button></div></td></tr>
+      <tr id="alm-cba"><td><div class="almd" style="background:var(--red);"></div></td><td><div class="tn">Primeras cuotas Av. Córdoba 403 + 404</div><div class="ts">Brukman · cheques a 45 días</div></td><td>Córdoba 403+404</td><td style="color:var(--amber);font-weight:500;">1–10 abr 2026</td><td><span class="badge br">Urgente</span></td><td><div class="gap"><button class="btn btns btnp" onclick="om('pago')">Preparar</button><button class="btn btns" onclick="RA('alm-cba',this)">Resolver</button></div></td></tr>
+      <tr id="alm-t" style="background:var(--amber-lt);"><td><div class="almd" style="background:#d4a017;"></div></td>
+        <td><div class="tn" id="alm-t-txt">Cobro alquiler Terrada 624 — mar 2026</div><div class="ts">Fashion Collection · U$D 4.300</div></td>
+        <td>Terrada 624</td><td style="color:var(--amber);font-weight:500;">15/03/2026</td>
+        <td><span class="badge ba" id="alm-t-b">Cobro pend.</span></td>
+        <td id="alm-t-a"><div class="gap"><button class="btn btns btng" onclick="abrirConfirm('t_alq')">Confirmar cobro</button><button class="btn btns" onclick="RA('alm-t',this)">Resolver</button></div></td>
+      </tr>
+      <tr id="alm-cu" style="background:var(--amber-lt);"><td><div class="almd" style="background:#d4a017;"></div></td>
+        <td><div class="tn" id="alm-cu-txt">Cuota 2 — venta local Cuenca</div><div class="ts">U$D 8.000</div></td>
+        <td>Cuenca Obra</td><td style="color:var(--amber);font-weight:500;">01/04/2026</td>
+        <td><span class="badge ba" id="alm-cu-b">Cobro pend.</span></td>
+        <td id="alm-cu-a"><div class="gap"><button class="btn btns btng" onclick="abrirConfirm('c_q2')">Confirmar cobro</button><button class="btn btns" onclick="RA('alm-cu',this)">Resolver</button></div></td>
+      </tr>
+      <tr id="alm-reno"><td><div class="almd" style="background:var(--blue);"></div></td><td><div class="tn">Renovación contrato Terrada 624</div><div class="ts">60 días antes del vencimiento</div></td><td>Terrada 624</td><td style="color:var(--blue);font-weight:500;">15 ene 2027</td><td><span class="badge bb">Baja</span></td><td><button class="btn btns" onclick="RA('alm-reno',this)">Resolver</button></td></tr>
+      <tr style="opacity:.45;"><td><div class="almd" style="background:var(--hint);"></div></td><td><div class="tn">Giribone 2363 — ¿Entregado en junio?</div><div class="ts">Confirmar entrega o actualizar fecha</div></td><td>Giribone</td><td style="color:var(--muted);">Jun 2026</td><td><span class="badge bgr">Auto · futura</span></td><td></td></tr>
+      <tr style="opacity:.45;"><td><div class="almd" style="background:var(--hint);"></div></td><td><div class="tn">Cerviño 3724 — ¿Entregado en marzo?</div><div class="ts">Confirmar entrega o actualizar fecha</div></td><td>Cerviño 3724</td><td style="color:var(--muted);">Mar 2027</td><td><span class="badge bgr">Auto · futura</span></td><td></td></tr>
+    </tbody>
+  </table></div></div>
+  <div style="font-size:12px;color:var(--muted);padding:4px 0;">Las alarmas automáticas se generan 30 días antes de la fecha estimada de entrega de cada proyecto.</div>
+</div>
+
+<!-- ══════════════════════════════════════
+  DOCUMENTOS
+══════════════════════════════════════ -->
+<div id="p-documentos" class="page">
+  <div class="ph"><div><div class="pt">Documentos</div><div class="ps">Repositorio por proyecto</div></div><button class="btn btnp" onclick="om('doc')">+ Subir documento</button></div>
+  <div class="tabs">
+    <div class="tab active" onclick="tabDoc('',this)">Todos</div>
+    <div class="tab" onclick="tabDoc('Contrato',this)">Contratos</div>
+    <div class="tab" onclick="tabDoc('Análisis',this)">Análisis</div>
+    <div class="tab" onclick="tabDoc('Pagaré',this)">Pagarés</div>
+    <div class="tab" onclick="tabDoc('Informe',this)">Informes</div>
+  </div>
+  <div class="dg" id="DOCS"></div>
+</div>
+
+<!-- ══════════════════════════════════════
+  REPORTES
+══════════════════════════════════════ -->
+<div id="p-reportes" class="page">
+  <div class="ph">
+    <div><div class="pt">Reportes</div><div class="ps">Para Lucía · datos en tiempo real</div></div>
+    <div class="gap">
+      <select class="btn" id="rep-periodo"><option value="mar2026">Marzo 2026</option><option value="q1">Q1 2026</option><option value="2025">2025 completo</option></select>
+      <button class="btn btnp" onclick="generarReporte()">Generar reporte</button>
+    </div>
+  </div>
+  <div id="REP-CONTENT">
+    <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);">
+      Seleccioná el período y hacé clic en <b>Generar reporte</b> para ver los datos actualizados.
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ══════════════════════════════════════
+  CONFIRM COBRO POPUP
+══════════════════════════════════════ -->
+<div class="ov" id="m-confirm">
+  <div class="cp fadein">
+    <div class="cp-t">Confirmar cobro</div>
+    <div class="cp-d">¿Confirmás que recibiste este pago? Al confirmar, el monto se acredita en la Caja USD y se actualiza en toda la app.</div>
+    <div class="cp-amt" id="cp-amt"></div>
+    <div class="cp-meta" id="cp-meta"></div>
+    <div class="fg"><label class="fl">Fecha en que lo cobraste</label><input class="fi" type="date" id="cp-f"></div>
+    <div class="fg"><label class="fl">Forma de cobro</label>
+      <select class="fi" id="cp-fm"><option>Efectivo USD billete</option><option>Transferencia USD</option><option>Cheque</option><option>Crypto USDT</option></select>
+    </div>
+    <div class="fg"><label class="fl">Nota (opcional)</label><input class="fi" type="text" id="cp-n" placeholder="Ej: me lo trajo en mano"></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-confirm')">Cancelar</button>
+      <button class="btn btng" style="font-size:13px;padding:9px 20px;" onclick="ejecutarCobro()">Confirmar cobro → entra a caja</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DOCUMENTO PREVIEW -->
+<div class="ov" id="m-docview">
+  <div class="modal fadein">
+    <div class="mt" id="dv-t">Documento</div>
+    <div id="dv-body" style="background:var(--s2);border-radius:var(--r);padding:16px;margin-bottom:14px;border:1px solid var(--border);"></div>
+    <div class="ma"><button class="btn" onclick="cm('m-docview')">Cerrar</button><button class="btn btnp">Descargar desde Dropbox</button></div>
+  </div>
+</div>
+
+<!-- MODAL REPORTE -->
+<div class="ov" id="m-rep">
+  <div class="modal modal-wide fadein" style="max-height:85vh;">
+    <div class="mt">Reporte generado</div>
+    <div id="m-rep-body" style="overflow-y:auto;max-height:55vh;"></div>
+    <div class="ma"><button class="btn" onclick="cm('m-rep')">Cerrar</button><button class="btn btnp" onclick="window.print()">Imprimir / PDF</button></div>
+  </div>
+</div>
+
+<!-- MODALES FORMULARIOS -->
+<div class="ov" id="m-pago"><div class="modal fadein"><div class="mt">Cargar pago de cuota</div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi"><option>Cerviño 3724 — 205</option><option>Rep. de la India — P13</option><option>Giribone 2363</option><option>ARYA Sumba D21</option><option>Av. Córdoba 404</option><option>Av. Córdoba 403</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Nº cuota</label><input class="fi" type="number" placeholder="40"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date"></div></div>
+  <div class="fg"><label class="fl">Moneda</label><select class="fi" id="MS" onchange="TM()"><option value="ars">Pesos ARS</option><option value="usd">USD directo</option><option value="mixto">Mixto ARS + USD</option></select></div>
+  <div class="frow" id="AI"><div class="fg"><label class="fl">Monto ARS</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Cotización del día</label><input class="fi" type="number" placeholder="1.420"></div></div>
+  <div class="fg" id="UI" style="display:none;"><label class="fl">Monto USD</label><input class="fi" type="number"></div>
+  <div class="fg"><label class="fl">Forma</label><select class="fi"><option>Cheques 45 días</option><option>Efectivo USD</option><option>Wire transfer</option><option>USDT</option></select></div>
+  <div class="fg"><label class="fl">Nota</label><input class="fi" type="text" placeholder="Ej: dejé cheques en Salguero"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-pago')">Cancelar</button><button class="btn btnp" onclick="GC('m-pago','Pago registrado ✓')">Guardar pago</button></div>
+</div></div>
+
+<div class="ov" id="m-compra"><div class="modal fadein"><div class="mt">Registrar nueva compra</div>
+  <div class="fg"><label class="fl">Nombre del proyecto</label><input class="fi" type="text" placeholder="Ej: Av. Santa Fe 2100 — 8B"></div>
+  <div class="fg"><label class="fl">Tipo</label><select class="fi"><option>Pozo con desarrollador</option><option>Propiedad terminada</option><option>Terreno / obra propia</option><option>Local / fábrica</option><option>Villa / internacional</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Socios</label><select class="fi"><option>Urban Group (Maxi + Tomi)</option><option>Maxi solo</option><option>Tomi solo</option></select></div><div class="fg"><label class="fl">M²</label><input class="fi" type="number"></div></div>
+  <div class="frow"><div class="fg"><label class="fl">Precio de compra (USD)</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date"></div></div>
+  <div class="fg"><label class="fl">¿Sale de la Caja USD?</label><select class="fi"><option>Sí — descontar de caja</option><option>No — pago externo</option></select></div>
+  <div class="fg"><label class="fl">Desarrollador</label><input class="fi" type="text"></div>
+  <div class="fg"><label class="fl">Entrega estimada</label><input class="fi" type="text" placeholder="Jun 2028"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-compra')">Cancelar</button><button class="btn btnp" onclick="GC('m-compra','Proyecto creado ✓')">Crear proyecto</button></div>
+</div></div>
+
+<div class="ov" id="m-venta"><div class="modal fadein"><div class="mt">Registrar venta</div>
+  <div class="fg"><label class="fl">Propiedad</label><select class="fi"><option>Giribone 2363 — Local 1</option><option>Giribone 2363 — Local 2</option><option>Cerviño 3724 — 205</option><option>Rep. de la India — P13</option></select></div>
+  <div class="fg"><label class="fl">Comprador</label><input class="fi" type="text"></div>
+  <div class="frow"><div class="fg"><label class="fl">Precio total (USD)</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date"></div></div>
+  <div class="fg"><label class="fl">Modalidad</label><select class="fi"><option>Contado</option><option>Cuotas sin interés</option><option>Boleto + saldo escritura</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Anticipo / seña (USD)</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Nº cuotas</label><input class="fi" type="number"></div></div>
+  <div class="fg"><label class="fl">Monto por cuota (USD)</label><input class="fi" type="number"></div>
+  <div class="info-box info-blue">Cada cuota generará una alarma cuando venza. El dinero entra a Caja USD solo cuando confirmás el cobro.</div>
+  <div class="ma"><button class="btn" onclick="cm('m-venta')">Cancelar</button><button class="btn btnp" onclick="GC('m-venta','Venta registrada ✓')">Registrar venta</button></div>
+</div></div>
+
+<div class="ov" id="m-gasto"><div class="modal fadein"><div class="mt">Registrar gasto</div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi"><option>General / Todos</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option></select></div>
+  <div class="fg"><label class="fl">Tipo de gasto</label><select class="fi"><option>ABL</option><option>Expensas</option><option>Impuesto sellos</option><option>Escribanía / honorario</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Otro</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Monto (USD)</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date"></div></div>
+  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" placeholder="Ej: ABL Terrada 624 1er bimestre 2026"></div>
+  <div class="fg"><label class="fl">¿Sale de la Caja USD?</label><select class="fi"><option>Sí — descontar de caja</option><option>No — pago externo</option></select></div>
+  <div class="info-box info-red">Al guardar, el monto se descontará del saldo de la Caja USD.</div>
+  <div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" onclick="GC('m-gasto','Gasto registrado ✓')">Registrar gasto</button></div>
+</div></div>
+
+<div class="ov" id="m-contrato"><div class="modal fadein"><div class="mt">Nuevo contrato de alquiler</div>
+  <div class="fg"><label class="fl">Propiedad</label><select class="fi"><option>Terrada 622-624 — UF2</option><option>Giribone 2363 — Local 1</option><option>Giribone 2363 — Local 2</option></select></div>
+  <div class="fg"><label class="fl">Inquilino</label><input class="fi" type="text"></div>
+  <div class="frow"><div class="fg"><label class="fl">Inicio</label><input class="fi" type="date"></div><div class="fg"><label class="fl">Vencimiento</label><input class="fi" type="date"></div></div>
+  <div class="frow"><div class="fg"><label class="fl">Monto mensual (USD)</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Moneda</label><select class="fi"><option>USD billete</option><option>ARS</option></select></div></div>
+  <div class="fg"><label class="fl">Gastos a cargo de</label><select class="fi"><option>Inquilino (todo)</option><option>Propietario</option></select></div>
+  <div class="fg"><label class="fl">¿Tiene pagaré firmado?</label><select class="fi"><option>Sí</option><option>Pendiente</option></select></div>
+  <div class="info-box info-blue">Se generarán alarmas 5 días antes de cada cobro mensual y 60 días antes del vencimiento del contrato.</div>
+  <div class="ma"><button class="btn" onclick="cm('m-contrato')">Cancelar</button><button class="btn btnp" onclick="GC('m-contrato','Contrato guardado ✓')">Guardar contrato</button></div>
+</div></div>
+
+<div class="ov" id="m-alarma"><div class="modal fadein"><div class="mt">Nueva alarma</div>
+  <div class="fg"><label class="fl">Tipo</label><select class="fi"><option>Vencimiento cuota</option><option>Cobro alquiler</option><option>Cuota de venta</option><option>Renovación contrato</option><option>Verificar entrega obra</option><option>Gasto pendiente</option><option>Otro</option></select></div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Fecha límite</label><input class="fi" type="date"></div><div class="fg"><label class="fl">Prioridad</label><select class="fi"><option>Urgente</option><option>Media</option><option>Baja</option></select></div></div>
+  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-alarma')">Cancelar</button><button class="btn btnp" onclick="GC('m-alarma','Alarma creada ✓')">Crear alarma</button></div>
+</div></div>
+
+<div class="ov" id="m-doc"><div class="modal fadein"><div class="mt">Subir documento</div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option></select></div>
+  <div class="fg"><label class="fl">Tipo</label><select class="fi"><option>Contrato / Escritura</option><option>Análisis financiero</option><option>Comprobante pago</option><option>Pagaré</option><option>Informe desarrollador</option><option>Foto / Video</option><option>Otro</option></select></div>
+  <div class="fg"><label class="fl">Nombre del archivo</label><input class="fi" type="text"></div>
+  <div style="border:1.5px dashed var(--border);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;background:var(--s2);margin-bottom:0;"><div style="font-size:13px;color:var(--muted);">Arrastrá el archivo acá</div><div style="font-size:11px;color:var(--hint);margin-top:4px;">PDF, XLS, DOC, JPG, MP4</div></div>
+  <div class="ma"><button class="btn" onclick="cm('m-doc')">Cancelar</button><button class="btn btnp" onclick="GC('m-doc','Documento subido ✓')">Subir</button></div>
+</div></div>
+
+<div class="ov" id="m-ingreso"><div class="modal fadein"><div class="mt" id="IT">Registrar ingreso</div>
+  <div class="frow"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date"></div></div>
+  <div class="fg"><label class="fl">Concepto</label><input class="fi" type="text"></div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi"><option>General</option><option>Terrada 624</option><option>Cuenca</option></select></div>
+  <div class="ma"><button class="btn" onclick="cm('m-ingreso')">Cancelar</button><button class="btn btnp" onclick="GC('m-ingreso','Movimiento guardado ✓')">Guardar</button></div>
+</div></div>
+
+<div class="ov" id="m-inquilino"><div class="modal fadein"><div class="mt">Nuevo inquilino</div>
+  <div class="fg"><label class="fl">Nombre / Razón social</label><input class="fi" type="text"></div>
+  <div class="frow"><div class="fg"><label class="fl">CUIT</label><input class="fi" type="text"></div><div class="fg"><label class="fl">Teléfono</label><input class="fi" type="text"></div></div>
+  <div class="fg"><label class="fl">Email</label><input class="fi" type="email"></div>
+  <div class="fg"><label class="fl">Propiedad</label><select class="fi"><option>Terrada 622-624 — UF2</option><option>Otra</option></select></div>
+  <div class="ma"><button class="btn" onclick="cm('m-inquilino')">Cancelar</button><button class="btn btnp" onclick="GC('m-inquilino','Inquilino guardado ✓')">Guardar</button></div>
+</div></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// ESTADO GLOBAL — ÚNICA FUENTE DE VERDAD
+// ═══════════════════════════════════════════════════════
+const S={
+  saldo:138820,
+  alarmas:5,
+  pendKey:null,
+  cobros:{
+    t_alq:{monto:4300,concepto:'Terrada 624 — Alquiler mar 2026',origen:'Fashion Collection',fecha_p:'15/03/2026',cobrado:false},
+    c_q2:{monto:8000,concepto:'Venta local Cuenca — Cuota 2',origen:'Comprador',fecha_p:'01/04/2026',cobrado:false},
+  },
+  pendTotal(){return Object.values(this.cobros).filter(x=>!x.cobrado).reduce((a,x)=>a+x.monto,0);},
+  saldoFmt(){return'U$D '+this.saldo.toLocaleString('es-AR');},
+};
+
+// ═══ DATOS PROYECTOS ═══════════════════════════════════
+const PR=[
+  {id:'ce',n:'Cerviño 3724 — 205',t:'Pozo Brukman',s:'Urban Group',m2:85.51,inv:'U$D 186.148',c:39,tc:48,e:'En obra',ec:'bb',ent:'Mar 2027',r:null,mo:'ARS',dir:'Cerviño 3724 y Ugarteche 3154, CABA',dev:'Brukman & Mansilla',ter:'U$D 102.612 depto + U$D 19.718 cochera',esc:[{n:'Pesimista',p:'U$D 3.000/m²',g:'+U$D 50.382',r:'24%',tir:'6,1%'},{n:'Moderado',p:'U$D 4.000/m²',g:'+U$D 135.892',r:'66%',tir:'14,3%'},{n:'Objetivo',p:'U$D 5.000/m²',g:'+U$D 221.402',r:'107%',tir:'20,8%'}]},
+  {id:'in',n:'Rep. de la India 2843 — P13',t:'Pozo Brukman',s:'Urban Group',m2:180.69,inv:'U$D 359.552',c:13,tc:48,e:'En obra',ec:'bb',ent:'Oct 2027',r:null,mo:'ARS',dir:'Rep. de la India 2843, Piso 13, CABA',dev:'Brukman & Mansilla',ter:'U$D 264.906 depto + U$D 19.659 cochera',esc:[{n:'Pesimista',p:'U$D 3.000/m²',g:'—',r:'—',tir:'13,2%'},{n:'Moderado',p:'U$D 4.000/m²',g:'+U$D 172.214',r:'—',tir:'23,3%'},{n:'Objetivo',p:'U$D 5.000/m²',g:'+U$D 352.904',r:'—',tir:'31,7%'}]},
+  {id:'t6',n:'Terrada 622-624 — UF2',t:'Fábrica · En alquiler',s:'Urban Group',m2:800,inv:'U$D 765.480',c:null,tc:null,e:'En alquiler',ec:'bg',ent:null,r:'U$D 4.300/mes',mo:'USD',dir:'Terrada 622-624, CABA',dev:'Compra directa',ter:'U$D 740.000 total',esc:[]},
+  {id:'t5',n:'Terrada 526 — Local 2',t:'Local · Uso propio',s:'Urban Group',m2:206.5,inv:'U$D 417.751',c:null,tc:null,e:'Uso propio',ec:'bgr',ent:null,r:null,mo:'USD',dir:'Terrada 526, Local 2, CABA',dev:'Compra Masri',ter:'30 cuotas U$D 10.000 + seña U$D 60.000',esc:[]},
+  {id:'gi',n:'Giribone 2363',t:'Obra propia ISK',s:'Urban Group',m2:1151,inv:'U$D 578.119',c:7,tc:null,e:'En obra',ec:'ba',ent:'Jun 2026',r:null,mo:'Mixto',dir:'Giribone 2363, Villa Celina',dev:'ISK-ARQ',ter:'U$D 311.992 terreno + comisión + escribano',esc:[]},
+  {id:'ar',n:'ARYA Sumba — D21',t:'Villa Indonesia',s:'Urban Group',m2:120,inv:'U$D 44.359',c:3,tc:36,e:'En constr.',ec:'bb',ent:'2027',r:null,mo:'USD',dir:'Kodi, West Sumba, Indonesia',dev:'ARYA Properties',ter:'U$D 34.482 anticipo · Total U$D 149.001',esc:[]},
+  {id:'c4',n:'Av. Córdoba 3350 — 404',t:'Pozo Brukman',s:'Maxi solo',m2:94.1,inv:'U$D 56.280',c:0,tc:48,e:'En obra',ec:'ba',ent:'TBD',r:null,mo:'ARS',dir:'Av. Córdoba 3350, Unidad 404, CABA',dev:'Brukman & Mansilla',ter:'U$D 56.280 cash jul 2024',esc:[{n:'Pesimista',p:'U$D 3.000/m²',g:'+U$D 60.531',r:'27%',tir:'—'},{n:'Moderado',p:'U$D 4.000/m²',g:'+U$D 154.631',r:'70%',tir:'—'},{n:'Objetivo',p:'U$D 4.500/m²',g:'+U$D 201.681',r:'91%',tir:'—'}]},
+  {id:'c3',n:'Av. Córdoba 3350 — 403',t:'Pozo Brukman',s:'Tomi solo',m2:94.2,inv:'U$D 56.321',c:0,tc:48,e:'En obra',ec:'ba',ent:'TBD',r:null,mo:'ARS',dir:'Av. Córdoba 3350, Unidad 403, CABA',dev:'Brukman & Mansilla',ter:'U$D 56.321 cash jul 2024',esc:[{n:'Pesimista',p:'U$D 3.000/m²',g:'+U$D 60.630',r:'27%',tir:'—'},{n:'Moderado',p:'U$D 4.000/m²',g:'+U$D 154.830',r:'70%',tir:'—'},{n:'Objetivo',p:'U$D 4.500/m²',g:'+U$D 201.930',r:'91%',tir:'—'}]},
+];
+
+// ═══ DOCS DATABASE ══════════════════════════════════════
+const DOCS_DB=[
+  {n:'Escritura Cerviño 3724',p:'Cerviño 3724',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Escritura de compraventa. Maxi Franco y Tomi Slauscius. Brukman & Mansilla. Junio 2023. Depto. 205 contrafrente 85,51 m².'},
+  {n:'Pagos Cerviño',p:'Cerviño 3724',t:'Análisis',ico:'XLS',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'Registro de 39 cuotas pagadas de ~48. Cheques 45 días en ARS. Cotizaciones por cuota.'},
+  {n:'Brochure Cerviño',p:'Cerviño 3724',t:'Comercial',ico:'PDF',icoBg:'var(--amber-bg)',icoC:'var(--amber)',desc:'Carpeta de venta Cerviño 3724. Renders, planos, especificaciones técnicas.'},
+  {n:'Compraventa India 2843',p:'India 2843',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Escritura Rep. de la India 2843, Piso 13. Urban Group. Brukman & Mansilla.'},
+  {n:'Pagos India 2843',p:'India 2843',t:'Análisis',ico:'XLS',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'13 cuotas pagadas de ~48. Análisis de cotizaciones y equivalentes USD.'},
+  {n:'Vista piso 13',p:'India 2843',t:'Comercial',ico:'MP4',icoBg:'var(--amber-bg)',icoC:'var(--amber)',desc:'Video de vista desde el piso 13. Material comercial.'},
+  {n:'Escritura Terrada 624',p:'Terrada 624',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Escritura Terrada 622-624 UF2. Compra a Cohen. Maxi Franco y Tomi Slauscius. Fábrica/depósito ~800 m².'},
+  {n:'Pagaré Fashion Col.',p:'Terrada 624',t:'Pagaré',ico:'PDF',icoBg:'var(--red-bg)',icoC:'var(--red)',desc:'Pagaré firmado. Inquilino: Fashion Collection. Monto: U$D 4.300/mes. Vigencia: 15 mar 2026 – 15 mar 2027. Estado: VIGENTE.'},
+  {n:'Contrato alquiler Terrada',p:'Terrada 624',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Contrato de alquiler Fashion Collection. Gastos a cargo del inquilino. Moneda: USD billete.'},
+  {n:'Escritura Terrada 526',p:'Terrada 526',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Escritura 1/3 parte indivisa. Compra a Masri. U$D 75.000. Junio 2023. Local 2, PB+2pisos+azotea 206,5 m².'},
+  {n:'Boleto Giribone 2363',p:'Giribone 2363',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Boleto de compraventa Giribone 2363. Urban Group. ISK-ARQ. Terreno U$D 300.000 + comisión + escribano.'},
+  {n:'Gastos obra ISK',p:'Giribone 2363',t:'Análisis',ico:'XLS',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'7 cuotas de obra pagadas a Kevin ISK-ARQ. Total ~U$D 266.127. Mixto ARS+USD. Ago 2025 – Mar 2026.'},
+  {n:'Brochure Giribone',p:'Giribone 2363',t:'Comercial',ico:'PDF',icoBg:'var(--amber-bg)',icoC:'var(--amber)',desc:'Material comercial para venta/alquiler. 2 locales 575,5 m² c/u. Villa Celina. Zona textil.'},
+  {n:'Contrato ARYA D21',p:'ARYA Sumba',t:'Contrato',ico:'PDF',icoBg:'var(--blue-bg)',icoC:'var(--blue)',desc:'Contrato Two Bedroom Villa D21. PT Sumba Tourist Services. Maxi Franco + Tomi Slauscius. Precio total: U$D 149.001. 36 cuotas U$D 2.689/mes.'},
+  {n:'Recibo INV-D21',p:'ARYA Sumba',t:'Análisis',ico:'PDF',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'Recibo INV-D21(1)_PAID. Primer pago U$D 34.482 (con 5% descuento). Fecha: 17/01/2025. Pagado en IDR via Crypto.'},
+  {n:'Reporte ARYA dic 2025',p:'ARYA Sumba',t:'Informe',ico:'PDF',icoBg:'var(--amber-bg)',icoC:'var(--amber)',desc:'Monthly Investor Report ARYA Sumba Kodi · Diciembre 2025. Avance de obra, temporada NATARU, estado del resort.'},
+  {n:'Análisis Córdoba 404',p:'Córdoba 404',t:'Análisis',ico:'XLS',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'Análisis financiero Av. Córdoba 3350 Unidad 404. Maxi solo. Escenarios TIR. Cuotas desde abr 2026.'},
+  {n:'Análisis Córdoba 403',p:'Córdoba 403',t:'Análisis',ico:'XLS',icoBg:'var(--green-bg)',icoC:'var(--green)',desc:'Análisis financiero Av. Córdoba 3350 Unidad 403. Tomi solo. Escenarios TIR. Cuotas desde abr 2026.'},
+];
+
+// ═══ LOGIN ══════════════════════════════════════════════
+function login(n,i,r){
+  document.getElementById('LW').style.display='none';
+  document.getElementById('AW').style.display='grid';
+  document.getElementById('SN').textContent=n;
+  document.getElementById('SAV').textContent=i;
+  document.getElementById('SR').textContent=r;
+  document.getElementById('cp-f').value=new Date().toISOString().split('T')[0];
+  rDT();rc();renderDocs('');
+}
+
+// ═══ NAVEGACIÓN ════════════════════════════════════════
+function nav(el){
+  if(!el)return;
+  const page=el.dataset.page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('p-'+page).classList.add('active');
+  el.classList.add('active');
+  if(page==='proyectos'){document.getElementById('PL').style.display='block';document.getElementById('PF').style.display='none';}
+}
+
+// ═══ TOAST ══════════════════════════════════════════════
+function toast(msg,type){
+  const t=document.getElementById('TOAST');
+  t.textContent=msg;
+  t.className='toast '+(type||'ok');
+  t.style.display='block';
+  t.style.opacity='1';
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.style.display='none',300);},2600);
+}
+
+// ═══ HELPERS ════════════════════════════════════════════
+function $$(id){return document.getElementById(id);}
+function bcol(p){return{bb:'var(--blue)',bg:'var(--green)',ba:'var(--amber)',br:'var(--red)',bgr:'var(--muted)'}[p.ec]||'var(--blue)';}
+function pct(p){return p.tc?Math.round(p.c/p.tc*100):(p.c?60:0);}
+
+// ═══ SYNC UI — actualiza todos los elementos conectados al STATE
+function syncUI(){
+  const sf=S.saldoFmt();
+  const pt=S.pendTotal();
+  $$('m-saldo')&&($$('m-saldo').textContent=sf);
+  $$('caja-num')&&($$('caja-num').textContent=sf);
+  $$('m-alarm')&&($$('m-alarm').textContent=S.alarmas);
+  const bc=$$('BC');if(bc){bc.textContent=S.alarmas>0?S.alarmas:'';bc.style.display=S.alarmas?'':'none';}
+  $$('caja-pend')&&($$('caja-pend').textContent=pt>0?'+ U$D '+pt.toLocaleString('es-AR'):'U$D 0');
+  $$('lbl-pend-total')&&($$('lbl-pend-total').textContent=pt>0?'U$D '+pt.toLocaleString('es-AR'):' Sin pendientes');
+}
+
+// ═══ CONFIRM COBRO ══════════════════════════════════════
+function abrirConfirm(key){
+  const c=S.cobros[key];
+  if(!c||c.cobrado)return;
+  S.pendKey=key;
+  $$('cp-amt').textContent='U$D '+c.monto.toLocaleString('es-AR');
+  $$('cp-meta').innerHTML=`<b>Concepto:</b> ${c.concepto}<br><b>De:</b> ${c.origen}<br><b>Fecha pactada:</b> ${c.fecha_p}`;
+  $$('m-confirm').classList.add('open');
+}
+
+function ejecutarCobro(){
+  const key=S.pendKey;
+  const c=S.cobros[key];
+  if(!c||c.cobrado)return;
+  c.cobrado=true;
+  const fRaw=$$('cp-f').value;
+  const fFmt=fRaw?new Date(fRaw+'T12:00:00').toLocaleDateString('es-AR'):'hoy';
+  const forma=$$('cp-fm').value;
+  S.saldo+=c.monto;
+  S.alarmas=Math.max(0,S.alarmas-1);
+  cm('m-confirm');
+  syncUI();
+  toast('Cobro confirmado: '+c.concepto.split('—')[0].trim()+' · U$D '+c.monto.toLocaleString(),'ok2');
+
+  // Agregar al historial de caja
+  const tb=$$('CAJAMOV');
+  if(tb){
+    const tr=document.createElement('tr');
+    tr.className='flash';
+    tr.innerHTML=`<td>${fFmt}</td><td>${c.concepto} · confirmado</td><td><span class="badge bg">${key==='t_alq'?'Alquiler':'Venta'}</span></td><td class="mono ing">+${c.monto.toLocaleString()}</td><td></td><td class="mono">${S.saldo.toLocaleString()}</td>`;
+    tb.insertBefore(tr,tb.firstChild);
+    setTimeout(()=>tr.classList.remove('flash'),800);
+  }
+
+  if(key==='t_alq'){
+    // Fila mar alquiler → cobrado
+    const rm=$$('row-mar');if(rm){rm.style.background='';rm.classList.add('flash');setTimeout(()=>rm.classList.remove('flash'),800);}
+    $$('mar-f')&&($$('mar-f').textContent=fFmt);
+    $$('mar-b')&&($$('mar-b').innerHTML='<span class="badge bg">Cobrado ✓</span>');
+    $$('mar-a')&&($$('mar-a').innerHTML='');
+    // Fila abr → pendiente
+    const ra=$$('row-abr');if(ra){ra.style.color='';ra.style.background='var(--amber-lt)';}
+    $$('abr-b')&&($$('abr-b').innerHTML='<span class="badge ba">Pendiente</span>');
+    $$('abr-a')&&($$('abr-a').innerHTML='');
+    $$('lbl-cobrado-alq')&&($$('lbl-cobrado-alq').textContent='U$D 16.300 cobrado este año');
+    // Dashboard alert → done
+    const ad=$$('a-terrada');if(ad){ad.classList.remove('ok');ad.classList.add('done');}
+    $$('a-terrada-dt')&&($$('a-terrada-dt').textContent='Cobrado el '+fFmt+' · '+forma+' ✓');
+    $$('a-terrada-btn')&&($$('a-terrada-btn').innerHTML='<span style="font-size:11px;color:var(--green);font-weight:500;">✓ Cobrado</span>');
+    // Alarma → resuelta
+    const at=$$('alm-t-txt');if(at)at.classList.add('strike');
+    $$('alm-t-b')&&Object.assign($$('alm-t-b'),{textContent:'Resuelto',className:'badge bgr'});
+    $$('alm-t-a')&&($$('alm-t-a').innerHTML='<span style="font-size:11px;color:var(--muted);">Resuelto ✓</span>');
+    // Pendiente caja
+    const pr=$$('prow-t');if(pr)pr.remove();
+    // Inquilino mora
+    const im=$$('inq-mora');if(im)im.textContent='Cobrado '+fFmt;
+  }
+
+  if(key==='c_q2'){
+    // Fila c2 venta → cobrado
+    const rc=$$('row-c2');if(rc){rc.style.background='';rc.classList.add('flash');setTimeout(()=>rc.classList.remove('flash'),800);}
+    $$('c2-f')&&($$('c2-f').textContent=fFmt);
+    $$('c2-b')&&($$('c2-b').innerHTML='<span class="badge bg">Cobrado ✓</span>');
+    $$('c2-a')&&($$('c2-a').innerHTML='');
+    $$('vt-cobrado')&&($$('vt-cobrado').textContent='U$D 16.000');
+    $$('vt-prox')&&($$('vt-prox').textContent='U$D 8.000 · 01/05/2026');
+    const ac=$$('a-cuenca');if(ac){ac.classList.remove('wrn');ac.classList.add('done');}
+    $$('a-cuenca-dt')&&($$('a-cuenca-dt').textContent='Cobrado el '+fFmt+' ✓');
+    $$('a-cuenca-btn')&&($$('a-cuenca-btn').innerHTML='<span style="font-size:11px;color:var(--green);font-weight:500;">✓ Cobrado</span>');
+    const cu=$$('alm-cu-txt');if(cu)cu.classList.add('strike');
+    $$('alm-cu-b')&&Object.assign($$('alm-cu-b'),{textContent:'Resuelto',className:'badge bgr'});
+    $$('alm-cu-a')&&($$('alm-cu-a').innerHTML='<span style="font-size:11px;color:var(--muted);">Resuelto ✓</span>');
+    const pc=$$('prow-c');if(pc)pc.remove();
+  }
+}
+
+// ═══ DASHBOARD TABLE ════════════════════════════════════
+function rDT(){
+  $$('DT').innerHTML=`<table><thead><tr><th>Proyecto</th><th>Socios</th><th>Invertido</th><th>Progreso</th><th>Estado</th><th></th></tr></thead><tbody>${
+    PR.map(p=>`<tr><td><div class="tn">${p.n}</div><div class="ts">${p.t}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></td><td><span class="badge ${p.ec}">${p.s}</span></td><td class="mono">${p.inv}</td><td>${p.c!==null?`<div class="prog"><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div><span class="pt2">${p.c}${p.tc?'/~'+p.tc:''}</span></div>`:`<span style="font-size:11px;color:var(--muted);">${p.r||'Pagado'}</span>`}</td><td><span class="badge ${p.ec}">${p.e}</span></td><td><button class="btn btns" onclick="VF('${p.id}')">Ver ficha</button></td></tr>`).join('')
+  }<tr style="opacity:.4;"><td><div class="tn">Cuenca Obra</div><div class="ts">4 locales · 1 vendido</div></td><td><span class="badge bgr">Urban + Tomi</span></td><td>—</td><td><span style="font-size:11px;color:var(--muted);">Pendiente Lucía</span></td><td><span class="badge bgr">Pendiente</span></td><td></td></tr></tbody></table>`;
+}
+
+// ═══ PROYECTOS CARDS ════════════════════════════════════
+function rc(){
+  const sf=$$('FS').value,se=$$('FE').value;
+  let d=PR;
+  if(sf)d=d.filter(p=>p.s===sf);
+  if(se==='obra')d=d.filter(p=>['En obra','En constr.'].includes(p.e)||p.e.includes('Arranca'));
+  if(se==='disponible')d=d.filter(p=>p.e==='Disponible');
+  if(se==='alquiler')d=d.filter(p=>p.e==='En alquiler');
+  if(se==='propio')d=d.filter(p=>p.e==='Uso propio');
+  if(se==='venta')d=d.filter(p=>p.e==='En venta');
+  if(se==='vendido')d=d.filter(p=>p.e==='Vendido');
+  $$('CG').innerHTML=d.map(p=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:15px;cursor:pointer;box-shadow:var(--sh);" onclick="VF('${p.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:500;flex:1;line-height:1.3;">${p.n}</div>
+        <span class="badge ${p.ec}" style="flex-shrink:0;margin-left:8px;">${p.e}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">${p.t} · ${p.s}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:${p.c!==null?10:0}px;">
+        <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">M²</div><div style="font-size:13px;font-weight:500;" class="mono">${p.m2.toLocaleString('es-AR')}</div></div>
+        <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">Invertido</div><div style="font-size:12px;font-weight:500;" class="mono">${p.inv}</div></div>
+      </div>
+      ${p.c!==null?`<div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;"><span>Cuotas</span><span>${p.c}${p.tc?'/~'+p.tc:''}</span></div><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div></div>`:''}
+      ${p.r?`<div style="margin-top:8px;font-size:12px;color:var(--green);font-weight:500;">${p.r}</div>`:''}
+      ${p.ent&&p.ent!=='TBD'?`<div style="margin-top:6px;font-size:11px;color:var(--muted);">Entrega: ${p.ent}</div>`:''}
+    </div>`).join('');
+}
+
+// ═══ FICHA ══════════════════════════════════════════════
+function VF(id){
+  const p=PR.find(x=>x.id===id);if(!p)return;
+  const pc=pct(p),col=bcol(p);
+  const EB=p.ent&&p.ent!=='TBD'?`<div style="background:var(--amber-lt);border:1px solid #d4a017;border-radius:var(--rl);padding:13px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div><div style="font-size:13px;font-weight:500;color:var(--amber);">Entrega estimada: ${p.ent}</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Al llegar esta fecha, la app te pregunta si se entregó o si hay que actualizar la fecha.</div></div>
+    <div class="gap"><button class="btn btns btnp" onclick="CE(true,'${p.id}')">Confirmar entrega</button><button class="btn btns" onclick="CE(false,'${p.id}')">Actualizar fecha</button></div>
+  </div>`:'';
+  const ESC=p.esc&&p.esc.length?`<div class="card"><div class="ch"><div class="ct">Escenarios de venta / alquiler</div></div><div class="tw"><table><thead><tr><th>Escenario</th><th>Precio/m²</th><th>Ganancia bruta</th><th>Rendim.</th><th>TIR anual</th></tr></thead><tbody>${p.esc.map(e=>`<tr><td><span class="badge ${e.n==='Pesimista'?'ba':e.n==='Moderado'?'bb':'bg'}">${e.n}</span></td><td class="mono">${e.p}</td><td class="mono" style="color:var(--green);">${e.g}</td><td class="mono">${e.r}</td><td class="mono" style="font-weight:500;">${e.tir}</td></tr>`).join('')}</tbody></table></div></div>`:'';
+  $$('PL').style.display='none';
+  $$('PF').style.display='block';
+  $$('PF').innerHTML=`
+    <div class="back" onclick="VP()">← Volver a proyectos</div>
+    <div class="ph">
+      <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn" onclick="om('venta')">Vender</button><button class="btn btnp" onclick="om('pago')">+ Cargar pago</button></div>
+    </div>
+    ${EB}
+    <div class="g2f">
+      <div class="fc"><div class="fl2">Información</div>
+        <div class="fr2"><span class="fk">Dirección</span><span class="fv" style="font-size:12px;text-align:right;max-width:60%;">${p.dir}</span></div>
+        <div class="fr2"><span class="fk">Desarrollador</span><span class="fv">${p.dev}</span></div>
+        <div class="fr2"><span class="fk">Superficie</span><span class="fv mono">${p.m2.toLocaleString('es-AR')} m²</span></div>
+        <div class="fr2"><span class="fk">Socios</span><span class="fv">${p.s}</span></div>
+        ${p.ent?`<div class="fr2"><span class="fk">Entrega est.</span><span class="fv">${p.ent}</span></div>`:''}
+        ${p.r?`<div class="fr2"><span class="fk">Renta mensual</span><span class="fv mono" style="color:var(--green);">${p.r}</span></div>`:''}
+      </div>
+      <div class="fc"><div class="fl2">Inversión</div>
+        <div class="fr2"><span class="fk">Terreno / anticipo</span><span class="fv" style="font-size:12px;text-align:right;max-width:60%;">${p.ter}</span></div>
+        <div class="fr2"><span class="fk">Total invertido</span><span class="fv mono" style="color:var(--blue);">${p.inv}</span></div>
+        ${p.c!==null?`<div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono">${p.c}${p.tc?' / ~'+p.tc:''}</span></div>
+        <div class="fr2"><span class="fk">Progreso</span><div class="prog" style="max-width:150px;"><div class="pb"><div class="pf" style="width:${pc}%;background:${col};"></div></div><span class="pt2">${pc}%</span></div></div>`:''}
+      </div>
+    </div>
+    <div class="card"><div class="ch"><div class="ct">Estado del activo</div></div>
+      <div style="padding:12px 14px;display:flex;gap:6px;flex-wrap:wrap;background:var(--s2);">
+        ${['En obra','Disponible','En alquiler','Uso propio','En venta','Vendido'].map(s=>`<button class="btn btns${p.e===s?' btnp':''}" onclick="cambiarEstado('${p.id}','${s}',this)">${s}</button>`).join('')}
+      </div>
+      <div style="padding:8px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);">Al marcar "Disponible" podés iniciar un alquiler o una venta.</div>
+    </div>
+    ${ESC}
+    <div class="card"><div class="ch"><div class="ct">Gastos de este activo</div><button class="btn btns" onclick="om('gasto')">+ Registrar gasto</button></div>
+      <div style="padding:14px;text-align:center;color:var(--muted);font-size:13px;">Sin gastos extra registrados</div>
+    </div>
+    <div class="card"><div class="ch"><div class="ct">Documentos</div><button class="btn btns" onclick="om('doc')">+ Subir</button></div>
+      <div class="dg" style="padding:14px;">${DOCS_DB.filter(d=>d.p.includes(p.n.split('—')[0].trim().split(' ').slice(0,2).join(' '))).map(d=>`
+        <div class="dc" onclick="verDoc('${d.n}')">
+          <div class="di" style="background:${d.icoBg};color:${d.icoC};">${d.ico}</div>
+          <div class="dn">${d.n}</div>
+          <div class="dm">${d.t}</div>
+        </div>`).join('')||'<div style="padding:4px;font-size:12px;color:var(--muted);">No hay documentos cargados para este proyecto.</div>'}
+      </div>
+    </div>`;
+  document.querySelectorAll('.ni').forEach(x=>x.classList.remove('active'));
+  document.querySelector('[data-page=proyectos]').classList.add('active');
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  $$('p-proyectos').classList.add('active');
+}
+
+function VP(){$$('PL').style.display='block';$$('PF').style.display='none';}
+function CE(ok,id){
+  if(ok){toast('Entrega confirmada. Actualizá el estado del activo.','ok2');}
+  else{const n=prompt('Nueva fecha estimada de entrega:');if(n){const p=PR.find(x=>x.id===id);if(p)p.ent=n;toast('Fecha actualizada a: '+n,'ok');}}
+}
+function cambiarEstado(id,e,btn){
+  const p=PR.find(x=>x.id===id);if(!p)return;
+  p.e=e;
+  btn.closest('div').querySelectorAll('button').forEach(b=>b.classList.remove('btnp'));
+  btn.classList.add('btnp');
+  toast('Estado actualizado: '+e,'ok');
+  if(e==='Disponible')setTimeout(()=>{if(confirm('Activo disponible.\n¿Querés iniciar un alquiler o una venta?'))om('contrato');},200);
+  if(e==='En venta')setTimeout(()=>om('venta'),200);
+}
+
+// ═══ ALARMAS ════════════════════════════════════════════
+function RA(rowId,btn){
+  S.alarmas=Math.max(0,S.alarmas-1);
+  syncUI();
+  const row=$$( rowId);if(row)row.style.opacity='.3';
+  btn.closest('div').innerHTML='<span style="font-size:11px;color:var(--muted);">Resuelta ✓</span>';
+  toast('Alarma resuelta','ok');
+}
+
+// ═══ TABS COBROS ════════════════════════════════════════
+function tabCobro(k,el){
+  ['alq','vta','inq'].forEach(t=>{const d=$$('tc-'+t);if(d)d.style.display=t===k?'block':'none';});
+  document.querySelectorAll('#p-cobros .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ═══ TABS DOCS ══════════════════════════════════════════
+function tabDoc(tipo,el){
+  document.querySelectorAll('#p-documentos .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderDocs(tipo);
+}
+function renderDocs(filtro){
+  const d=filtro?DOCS_DB.filter(x=>x.t===filtro||x.t.includes(filtro)):DOCS_DB;
+  const extra=`<div class="dc" style="border-style:dashed;" onclick="om('doc')"><div class="di" style="background:var(--gray);color:var(--muted);">+</div><div class="dn" style="color:var(--muted);">Subir documento</div><div class="dm">Arrastrá o clic</div></div>`;
+  $$('DOCS').innerHTML=d.map(doc=>`
+    <div class="dc" onclick="verDoc('${doc.n}')">
+      <div class="di" style="background:${doc.icoBg};color:${doc.icoC};">${doc.ico}</div>
+      <div class="dn">${doc.n}</div>
+      <div class="dm">${doc.p} · ${doc.t}</div>
+    </div>`).join('')+extra;
+}
+
+// ═══ VER DOCUMENTO ══════════════════════════════════════
+function verDoc(nombre){
+  const doc=DOCS_DB.find(d=>d.n===nombre)||{n:nombre,p:'—',t:'Documento',ico:'DOC',icoBg:'var(--gray)',icoC:'var(--muted)',desc:'Archivo cargado en el sistema.'};
+  $$('dv-t').textContent=doc.n;
+  $$('dv-body').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;border-radius:8px;background:${doc.icoBg};color:${doc.icoC};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;">${doc.ico}</div>
+      <div><div style="font-size:14px;font-weight:500;">${doc.n}</div><div style="font-size:12px;color:var(--muted);">${doc.p} · ${doc.t}</div></div>
+    </div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;">${doc.desc}</div>
+    <div style="font-size:11px;color:var(--hint);padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">Para abrir el archivo completo, accedé desde tu carpeta de Dropbox en la carpeta URBAN → ${doc.p}.</div>`;
+  $$('m-docview').classList.add('open');
+}
+
+// ═══ FILTRO CAJA ════════════════════════════════════════
+function filtCaja(v){
+  $$('CAJAMOV')?.querySelectorAll('tr').forEach(r=>{
+    if(!v){r.style.display='';return;}
+    r.style.display=(v==='ing'&&r.querySelector('.ing'))||(v==='eg'&&r.querySelector('.sal'))?'':'none';
+  });
+}
+
+// ═══ REPORTE DINÁMICO ═══════════════════════════════════
+function generarReporte(){
+  const periodo=$$('rep-periodo').value;
+  const lbls={mar2026:'Marzo 2026',q1:'Q1 2026 (ene-mar)',2025:'2025 completo'};
+  const cobConf=Object.values(S.cobros).filter(x=>x.cobrado).reduce((a,x)=>a+x.monto,0);
+  const pendT=S.pendTotal();
+  const fecha=new Date().toLocaleDateString('es-AR');
+  $$('REP-CONTENT').innerHTML=`
+    <div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);display:flex;justify-content:space-between;align-items:center;">
+      <div><div style="font-size:15px;font-weight:500;">Reporte ${lbls[periodo]}</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">Generado el ${fecha} · Urban Group Portfolio</div></div>
+      <button class="btn btns" onclick="window.print()">Imprimir / PDF</button>
+    </div>
+    <div class="mg g4" style="margin-bottom:16px;">
+      <div class="mc ag"><div class="ml">Saldo caja USD</div><div class="mv mono" style="color:var(--blue);">${S.saldoFmt()}</div><div class="ms">al ${fecha}</div></div>
+      <div class="mc ag"><div class="ml">Cobros confirmados (sesión)</div><div class="mv mono" style="color:var(--green);">U$D ${cobConf.toLocaleString('es-AR')}</div><div class="ms">esta sesión</div></div>
+      <div class="mc aa"><div class="ml">Pendientes de confirmar</div><div class="mv mono" style="color:var(--amber);">U$D ${pendT.toLocaleString('es-AR')}</div><div class="ms">requieren tu acción</div></div>
+      <div class="mc ab"><div class="ml">Total invertido</div><div class="mv mono">U$D 2,46M</div><div class="ms">sin Cuenca Obra</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Estado por proyecto · ${lbls[periodo]}</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Proyecto</th><th>Socios</th><th>M²</th><th>Total invertido</th><th>Cuotas</th><th>Renta/Estado</th><th>Situación</th></tr></thead>
+        <tbody>${PR.map(p=>`<tr><td><div class="tn">${p.n}</div></td><td><span class="badge ${p.ec}">${p.s}</span></td><td class="mono">${p.m2}</td><td class="mono">${p.inv}</td><td>${p.c!==null?p.c+(p.tc?'/~'+p.tc:''):'Pagado'}</td><td class="mono" style="color:var(--green);">${p.r||'—'}</td><td><span class="badge ${p.ec}">${p.e}</span></td></tr>`).join('')}
+        <tr style="opacity:.4;"><td><div class="tn">Cuenca Obra</div></td><td><span class="badge bgr">Urban+Tomi</span></td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="badge bgr">Pendiente Lucía</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Movimientos caja · ${lbls[periodo]}</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Ingreso</th><th>Egreso</th></tr></thead>
+        <tbody>
+          ${cobConf>0?Object.entries(S.cobros).filter(([,v])=>v.cobrado).map(([,v])=>`<tr><td>Sesión actual</td><td>${v.concepto}</td><td><span class="badge bg">Ingreso confirmado</span></td><td class="mono ing">+${v.monto.toLocaleString()}</td><td></td></tr>`).join(''):''}
+          <tr><td>16-mar</td><td>Terrada 624 · alquiler feb</td><td><span class="badge bg">Alquiler</span></td><td class="mono ing">+4.300</td><td></td></tr>
+          <tr><td>13-mar</td><td>Aporte caja Urban Textil</td><td><span class="badge bb">Aporte</span></td><td class="mono ing">+50.000</td><td></td></tr>
+          <tr><td>5-ene</td><td>Pagué yumi urb023 + urb005</td><td><span class="badge br">Egreso</span></td><td></td><td class="mono sal">−34.000</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--hint);padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);">* Los datos de inversión reflejan el estado al momento de generación. Saldo de caja incluye cobros confirmados en esta sesión. Para persistir los datos entre sesiones, la app debe migrarse a Supabase.</div>`;
+  toast('Reporte generado ✓','ok2');
+}
+
+// ═══ MODALES ════════════════════════════════════════════
+const MM={pago:'m-pago',compra:'m-compra',venta:'m-venta',gasto:'m-gasto',cobro:'m-confirm',alarma:'m-alarma',doc:'m-doc',ingreso:'m-ingreso',egreso:'m-ingreso',contrato:'m-contrato',inquilino:'m-inquilino'};
+function om(t){
+  if(t==='egreso')$$('IT').textContent='Registrar egreso';
+  if(t==='ingreso')$$('IT').textContent='Registrar ingreso';
+  const id=MM[t];if(id)$$(id).classList.add('open');
+}
+function cm(id){$$(id).classList.remove('open');}
+function GC(id,msg){cm(id);toast(msg||'Guardado ✓','ok2');}
+document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
+function TM(){const v=$$('MS').value;$$('AI').style.display=v==='usd'?'none':'grid';$$('UI').style.display=v==='ars'?'none':'block';}
+function tA(el){document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+</script>
+</body>
+</html>
