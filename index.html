@@ -462,20 +462,44 @@ function editarProyecto(id){
   $$('ep-entrega').value = p.ent || '';
   $$('ep-renta').value = p.r || '';
   $$('ep-inv').value = p.inv || '';
+  $$('ep-tipo').value = p.t || '';
+  $$('ep-socios').value = p.s || '';
   $$('m-editar-proyecto').classList.add('open');
 }
 
-function guardarEdicionProyecto(){
+async function guardarEdicionProyecto(){
   const p = PR.find(x=>x.id===_editProyId);
   if(!p) return;
-  p.e = $$('ep-estado').value;
-  p.m2 = parseFloat($$('ep-m2').value) || p.m2;
-  p.ent = $$('ep-entrega').value || null;
-  p.r = $$('ep-renta').value || null;
-  p.inv = $$('ep-inv').value || p.inv;
-  // Actualizar badge color según estado
-  const badgeMap = {'En obra':'bb','En alquiler':'bg','Uso propio':'bgr','En constr.':'bb','Seña — en proceso':'ba','Pagado':'bgr'};
-  p.ec = badgeMap[p.e] || 'bb';
+  const nuevoEstado = $$('ep-estado').value;
+  const nuevoM2 = parseFloat($$('ep-m2').value) || p.m2;
+  const nuevaEntrega = $$('ep-entrega').value || null;
+  const nuevaRenta = $$('ep-renta').value || null;
+  const nuevaInv = $$('ep-inv').value || p.inv;
+  const nuevoTipo = $$('ep-tipo').value || p.t;
+  const nuevosSocios = $$('ep-socios').value || p.s;
+  const badgeMap = {'En obra':'bb','En alquiler':'bg','Uso propio':'bgr','En constr.':'bb','Seña — en proceso':'ba','Pagado':'bgr','Local 2 vendido':'bg'};
+  // Guardar en Supabase
+  const {error} = await sb.from('proyectos').update({
+    estado: nuevoEstado,
+    estado_badge: badgeMap[nuevoEstado]||'bb',
+    m2: nuevoM2,
+    entrega: nuevaEntrega,
+    renta: nuevaRenta,
+    inv_usd: nuevaInv,
+    tipo: nuevoTipo,
+    socios: nuevosSocios,
+    updated_at: new Date().toISOString()
+  }).eq('id', _editProyId);
+  if(error){ toast('Error al guardar: '+error.message,'err'); return; }
+  // Actualizar en memoria
+  p.e = nuevoEstado;
+  p.ec = badgeMap[nuevoEstado]||'bb';
+  p.m2 = nuevoM2;
+  p.ent = nuevaEntrega;
+  p.r = nuevaRenta;
+  p.inv = nuevaInv;
+  p.t = nuevoTipo;
+  p.s = nuevosSocios;
   cm('m-editar-proyecto');
   toast('Proyecto actualizado ✓','ok2');
   rDT(); rc();
@@ -585,6 +609,7 @@ async function login(nombre,ini,rol){
   $$('mov-fecha').value=new Date().toISOString().split('T')[0];
   $$('g-fecha').value=new Date().toISOString().split('T')[0];
   $$('pago-fecha').value=new Date().toISOString().split('T')[0];
+  await cargarProyectosDeSupabase();
   rDT();rc();
   await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
   actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
@@ -1102,6 +1127,27 @@ async function VF(id){
 // ═══════════════════════════════════════════════════
 // REPORTE
 // ═══════════════════════════════════════════════════
+
+async function cargarProyectosDeSupabase(){
+  const {data, error} = await sb.from('proyectos').select('*');
+  if(error || !data) return;
+  data.forEach(row => {
+    const p = PR.find(x=>x.id===row.id);
+    if(p){
+      p.n   = row.nombre || p.n;
+      p.t   = row.tipo   || p.t;
+      p.s   = row.socios || p.s;
+      p.m2  = row.m2     || p.m2;
+      p.inv = row.inv_usd|| p.inv;
+      p.e   = row.estado || p.e;
+      p.ec  = row.estado_badge || p.ec;
+      p.ent = row.entrega|| p.ent;
+      p.r   = row.renta  || p.r;
+      p.tc  = row.cuotas_total || p.tc;
+    }
+  });
+}
+
 async function actualizarContadoresCuotas(){
   const {data} = await sb.from('pagos_cuotas').select('proyecto_nombre');
   if(!data) return;
@@ -1258,21 +1304,26 @@ function filtCaja(v){$$('CAJAMOV')?.querySelectorAll('.mov-row').forEach(r=>{if(
 <!-- MODAL EDITAR PROYECTO -->
 <div class="ov" id="m-editar-proyecto"><div class="modal">
   <div class="mt2">Editar proyecto</div>
-  <div class="fg"><label class="fl">Estado</label>
-    <select class="fi" id="ep-estado">
-      <option>En obra</option>
-      <option>En alquiler</option>
-      <option>Uso propio</option>
-      <option>En constr.</option>
-      <option>Seña — en proceso</option>
-      <option>Pagado</option>
-    </select>
+  <div class="frow">
+    <div class="fg"><label class="fl">Estado</label>
+      <select class="fi" id="ep-estado">
+        <option>En obra</option>
+        <option>En alquiler</option>
+        <option>Uso propio</option>
+        <option>En constr.</option>
+        <option>Seña — en proceso</option>
+        <option>Pagado</option>
+        <option>Local 2 vendido</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Superficie (m²)</label><input class="fi" type="number" id="ep-m2" step="0.01"></div>
   </div>
   <div class="frow">
-    <div class="fg"><label class="fl">Superficie (m²)</label><input class="fi" type="number" id="ep-m2" step="0.01"></div>
     <div class="fg"><label class="fl">Entrega estimada</label><input class="fi" type="text" id="ep-entrega" placeholder="Mar 2027"></div>
+    <div class="fg"><label class="fl">Socios</label><input class="fi" type="text" id="ep-socios" placeholder="Urban Group"></div>
   </div>
-  <div class="fg"><label class="fl">Renta mensual (ej: U$D 4.300/mes)</label><input class="fi" type="text" id="ep-renta" placeholder="U$D 4.300/mes"></div>
+  <div class="fg"><label class="fl">Tipo / Descripción</label><input class="fi" type="text" id="ep-tipo" placeholder="Pozo Brukman"></div>
+  <div class="fg"><label class="fl">Renta mensual</label><input class="fi" type="text" id="ep-renta" placeholder="U$D 4.300/mes"></div>
   <div class="fg"><label class="fl">Total invertido</label><input class="fi" type="text" id="ep-inv" placeholder="U$D 186.148"></div>
   <div class="ma">
     <button class="btn" onclick="cm('m-editar-proyecto')">Cancelar</button>
