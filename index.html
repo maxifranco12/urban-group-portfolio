@@ -1024,8 +1024,21 @@ async function VF(id){
           <td class="mono ing">${fmtUSD(c.monto_usd||0)}</td>
           <td>${c.forma||'-'}</td>
           <td style="white-space:nowrap;">
-            <button class="btn btns" style="margin-right:4px;" onclick="editarCuota('${c.id}','${c.proyecto_nombre}',${c.nro_cuota},'${c.fecha}',${c.monto_ars||0},${c.cotizacion||0},${c.monto_usd||0},'${c.forma||''}')">✏️</button>
-            <button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);" onclick="borrarCuota('${c.id}','${c.nro_cuota}','${c.proyecto_nombre}')">🗑</button>
+            <button class="btn btns" style="margin-right:4px;"
+              data-id="${c.id}"
+              data-proyecto="${c.proyecto_nombre}"
+              data-nro="${c.nro_cuota}"
+              data-fecha="${c.fecha||''}"
+              data-ars="${c.monto_ars||0}"
+              data-cot="${c.cotizacion||0}"
+              data-usd="${c.monto_usd||0}"
+              data-forma="${(c.forma||'').replace(/"/g,'&quot;')}"
+              onclick="const d=this.dataset;editarCuota(d.id,d.proyecto,d.nro,d.fecha,d.ars,d.cot,d.usd,d.forma)">✏️</button>
+            <button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);"
+              data-id="${c.id}"
+              data-nro="${c.nro_cuota}"
+              data-proyecto="${c.proyecto_nombre}"
+              onclick="const d=this.dataset;borrarCuota(d.id,d.nro,d.proyecto)">🗑</button>
           </td>
         </tr>`).join('')}</tbody>
       </table></div>
