@@ -494,7 +494,7 @@ async function login(nombre,ini,rol){
   $$('g-fecha').value=new Date().toISOString().split('T')[0];
   $$('pago-fecha').value=new Date().toISOString().split('T')[0];
   rDT();rc();
-  await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
+  await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas(),actualizarContadoresCuotas()]);
   $$('dash-sub').textContent='Resumen del portfolio · ' + new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 }
 
@@ -853,7 +853,7 @@ function rc(){
     </div>`).join('');
 }
 
-function VF(id){
+async function VF(id){
   if(id==='cuenca'){
     $$('PL').style.display='none';
     $$('PF').style.display='block';
@@ -902,6 +902,26 @@ function VF(id){
   const p=PR.find(x=>x.id===id);if(!p)return;
   $$('PL').style.display='none';
   $$('PF').style.display='block';
+  // Mostrar loading mientras carga
+  $$('PF').innerHTML=`<div class="loading"><div class="spinner"></div>Cargando ficha…</div>`;
+  // Traer cuotas reales desde Supabase
+  let cuotasPagadas = null;
+  let ultimaCuota = null;
+  let totalUSD = 0;
+  if(p.tc || p.c !== null){
+    const {data} = await sb.from('pagos_cuotas')
+      .select('nro_cuota, fecha, monto_usd, monto_ars, cotizacion, forma')
+      .ilike('proyecto_nombre','%'+p.n.split('—')[0].trim()+'%')
+      .order('nro_cuota',{ascending:false});
+    if(data && data.length>0){
+      cuotasPagadas = data.length;
+      ultimaCuota = data[0];
+      totalUSD = data.reduce((s,r)=>s+Number(r.monto_usd||0),0);
+    } else {
+      cuotasPagadas = 0;
+    }
+  }
+  const pct2 = p.tc && cuotasPagadas ? Math.round(cuotasPagadas/p.tc*100) : 0;
   $$('PF').innerHTML=`
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
@@ -917,15 +937,67 @@ function VF(id){
       </div>
       <div class="fc"><div class="fl2">Inversión</div>
         <div class="fr2"><span class="fk">Total invertido</span><span class="fv mono" style="color:var(--blue);">${p.inv}</span></div>
-        ${p.c!==null?`<div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono">${p.c}${p.tc?' / ~'+p.tc:''}</span></div>`:''}
+        ${cuotasPagadas!==null?`
+        <div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono" style="color:var(--green);">${cuotasPagadas}${p.tc?' / '+p.tc:''}</span></div>
+        ${p.tc?`<div class="fr2"><span class="fk">Progreso</span><span class="fv"><div class="pb" style="width:120px;display:inline-block;vertical-align:middle;margin-right:6px;"><div class="pf" style="width:${pct2}%;background:var(--blue);"></div></div>${pct2}%</span></div>`:''}
+        ${totalUSD>0?`<div class="fr2"><span class="fk">Total pagado</span><span class="fv mono">${fmtUSD(totalUSD)}</span></div>`:''}
+        ${ultimaCuota?`<div class="fr2"><span class="fk">Última cuota</span><span class="fv mono">N°${ultimaCuota.nro_cuota} · ${fmtFecha(ultimaCuota.fecha)} · ${fmtUSD(ultimaCuota.monto_usd)}</span></div>`:''}
+        `:''}
       </div>
-    </div>`;
+    </div>
+  `;
+  // Cargar tabla de cuotas por separado (sin await dentro del template)
+  if(cuotasPagadas!==null && cuotasPagadas>0){
+    const {data:filas} = await sb.from('pagos_cuotas')
+      .select('*')
+      .ilike('proyecto_nombre','%'+p.n.split('—')[0].trim()+'%')
+      .order('nro_cuota',{ascending:false});
+    const tablaHTML = filas && filas.length>0 ? `
+    <div class="card">
+      <div class="ch"><div class="ct">Historial de cuotas pagadas</div><span class="badge bg">${filas.length} pagadas</span></div>
+      <div class="tw"><table>
+        <thead><tr><th>N°</th><th>Fecha</th><th>Monto ARS</th><th>Cotización</th><th>USD</th><th>Forma</th></tr></thead>
+        <tbody>${filas.map(c=>`<tr>
+          <td><b>${c.nro_cuota}</b></td>
+          <td>${fmtFecha(c.fecha)}</td>
+          <td class="mono">${c.monto_ars?Number(c.monto_ars).toLocaleString('es-AR'):'-'}</td>
+          <td class="mono">${c.cotizacion?'$'+Number(c.cotizacion).toLocaleString('es-AR'):'-'}</td>
+          <td class="mono ing">${fmtUSD(c.monto_usd||0)}</td>
+          <td>${c.forma||'-'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>` : '';
+    $$('PF').innerHTML += tablaHTML;
+  } else if(cuotasPagadas===0){
+    $$('PF').innerHTML += `<div class="card"><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Sin cuotas registradas todavía.</div></div>`;
+  }
+  // Actualizar contador en PR
+  const proj = PR.find(x=>x.id===id);
+  if(proj && cuotasPagadas!==null) proj.c = cuotasPagadas;
 }
 
 // ═══════════════════════════════════════════════════
 // REPORTE
 // ═══════════════════════════════════════════════════
-async function generarReporte(){
+async function actualizarContadoresCuotas(){
+  // Traer count de cuotas por proyecto desde Supabase
+  const {data} = await sb.from('pagos_cuotas').select('proyecto_nombre');
+  if(!data) return;
+  // Contar por proyecto
+  const counts = {};
+  data.forEach(r=>{
+    const key = r.proyecto_nombre;
+    counts[key] = (counts[key]||0)+1;
+  });
+  // Mapeo de nombre → id del array PR
+  PR.forEach(p=>{
+    // Buscar coincidencia por nombre
+    const match = Object.keys(counts).find(k=>k.includes(p.n.split('—')[0].trim()));
+    if(match) p.c = counts[match];
+  });
+  // Redibujar tabla del dashboard y grilla de proyectos
+  rDT(); rc();
+}
   $$('REP-CONTENT').innerHTML='<div class="loading"><div class="spinner"></div>Generando reporte desde la base de datos…</div>';
   const [saldo, {data:cobros}, {data:gastos}, {data:alarmas}] = await Promise.all([
     calcularSaldo(),
