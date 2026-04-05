@@ -361,7 +361,7 @@ tr:hover td{background:var(--s2);}
 <!-- MODAL PAGO CUOTA -->
 <div class="ov" id="m-pago"><div class="modal">
   <div class="mt2">Cargar pago de cuota</div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pago-proyecto" onchange="sugerirCuota()"><option>Cerviño 3724 — 205</option><option>Rep. de la India — P13</option><option>Giribone 2363</option><option>ARYA Sumba D21</option><option>Av. Córdoba 404</option><option>Av. Córdoba 403</option></select></div>
+  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pago-proyecto" onchange="sugerirCuota()"><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Giribone 2363</option><option>ARYA Sumba — D21</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option></select></div>
   <!-- Sugerencia de cuota -->
   <div id="cuota-sugerida" style="display:none;margin-bottom:10px;padding:9px 12px;background:var(--blue-lt);border:1px solid var(--blue-bg);border-radius:var(--r);font-size:12px;color:var(--blue);display:flex;align-items:center;justify-content:space-between;gap:8px;">
     <span id="cuota-sugerida-txt"></span>
@@ -1070,7 +1070,7 @@ async function sugerirCuota(){
   const pid = proyecto.split('—')[0].trim().toLowerCase().replace(/[^a-z0-9]/g,'_');
   const {data} = await sb.from('pagos_cuotas')
     .select('nro_cuota,fecha,monto_usd')
-    .ilike('proyecto_nombre','%'+proyecto.split('—')[0].trim()+'%')
+    .ilike('proyecto_nombre', proyecto)
     .order('nro_cuota',{ascending:false})
     .limit(1);
   if(data && data.length>0 && data[0].nro_cuota){
