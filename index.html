@@ -981,24 +981,18 @@ async function VF(id){
 // REPORTE
 // ═══════════════════════════════════════════════════
 async function actualizarContadoresCuotas(){
-  // Traer count de cuotas por proyecto desde Supabase
   const {data} = await sb.from('pagos_cuotas').select('proyecto_nombre');
   if(!data) return;
-  // Contar por proyecto
   const counts = {};
-  data.forEach(r=>{
-    const key = r.proyecto_nombre;
-    counts[key] = (counts[key]||0)+1;
-  });
-  // Mapeo de nombre → id del array PR
+  data.forEach(r=>{ counts[r.proyecto_nombre]=(counts[r.proyecto_nombre]||0)+1; });
   PR.forEach(p=>{
-    // Buscar coincidencia por nombre
     const match = Object.keys(counts).find(k=>k.includes(p.n.split('—')[0].trim()));
     if(match) p.c = counts[match];
   });
-  // Redibujar tabla del dashboard y grilla de proyectos
   rDT(); rc();
 }
+
+async function generarReporte(){
   $$('REP-CONTENT').innerHTML='<div class="loading"><div class="spinner"></div>Generando reporte desde la base de datos…</div>';
   const [saldo, {data:cobros}, {data:gastos}, {data:alarmas}] = await Promise.all([
     calcularSaldo(),
