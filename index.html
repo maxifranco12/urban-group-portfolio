@@ -234,7 +234,7 @@ tr:hover td{background:var(--s2);}
     </div>
   </div>
   <div class="mg g5">
-    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">Total invertido</div><div class="mv mono">U$D 2,46M</div><div class="ms">8 proyectos</div></div>
+    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">Total invertido</div><div class="mv mono">U$D 3,17M</div><div class="ms">10 proyectos</div></div>
     <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">M² en cartera</div><div class="mv mono">3.132 m²</div><div class="ms">propios + en obra</div></div>
     <div class="mc ag" onclick="nav(document.querySelector('[data-page=cobros]'))"><div class="ml">Renta mensual</div><div class="mv mono" style="color:var(--green);">U$D 4.300</div><div class="ms">Fashion Collection</div></div>
     <div class="mc ag" onclick="nav(document.querySelector('[data-page=caja]'))"><div class="ml">Caja USD</div><div class="mv mono" id="m-saldo" style="color:var(--blue);"><div class="spinner" style="display:inline-block;"></div></div><div class="ms">confirmado</div></div>
@@ -934,7 +934,7 @@ function pct(p){return p.tc?Math.round(p.c/p.tc*100):(p.c?60:0);}
 function rDT(){
   $$('DT').innerHTML=`<table><thead><tr><th>Proyecto</th><th>Socios</th><th>Invertido</th><th>Progreso</th><th>Estado</th><th></th></tr></thead><tbody>${
     PR.map(p=>`<tr><td><div class="tn">${p.n}</div><div class="ts">${p.t}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></td><td><span class="badge ${p.ec}">${p.s}</span></td><td class="mono">${p.inv}</td><td>${p.c!==null?`<div class="prog"><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div><span class="pt2">${p.c}${p.tc?'/'+p.tc:''}</span></div>`:`<span style="font-size:11px;color:var(--muted);">${p.r||'Pagado'}</span>`}</td><td><span class="badge ${p.ec}">${p.e}</span></td><td><button class="btn btns" onclick="VF('${p.id}')">Ver ficha</button></td></tr>`).join('')
-  }<tr><td><div class="tn">Cuenca Obra</div><div class="ts">4 locales · Local 2 vendido a Gastón Duek</div></td><td><span class="badge bgr">Urban+Tomi</span></td><td class="mono">U$D 701.000</td><td><div style="font-size:11px;color:var(--green);">Venta L2: U$D 400.000<br>29 cuotas + 2 refuerzos</div></td><td><span class="badge bg">Local 2 vendido</span></td><td><button class="btn btns" onclick="VF('cuenca')">Ver ficha</button></td></tr></tbody></table>`;
+  }</tbody></table>`;
 }
 
 function rc(){
