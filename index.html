@@ -494,7 +494,8 @@ async function login(nombre,ini,rol){
   $$('g-fecha').value=new Date().toISOString().split('T')[0];
   $$('pago-fecha').value=new Date().toISOString().split('T')[0];
   rDT();rc();
-  await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas(),actualizarContadoresCuotas()]);
+  await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
+  actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
   $$('dash-sub').textContent='Resumen del portfolio · ' + new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 }
 
