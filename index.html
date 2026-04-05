@@ -912,7 +912,7 @@ async function VF(id){
   if(p.tc || p.c !== null){
     const {data} = await sb.from('pagos_cuotas')
       .select('nro_cuota, fecha, monto_usd, monto_ars, cotizacion, forma')
-      .ilike('proyecto_nombre','%'+p.n.split('—')[0].trim()+'%')
+      .ilike('proyecto_nombre', p.n)
       .order('nro_cuota',{ascending:false});
     if(data && data.length>0){
       cuotasPagadas = data.length;
@@ -951,7 +951,7 @@ async function VF(id){
   if(cuotasPagadas!==null && cuotasPagadas>0){
     const {data:filas} = await sb.from('pagos_cuotas')
       .select('*')
-      .ilike('proyecto_nombre','%'+p.n.split('—')[0].trim()+'%')
+      .ilike('proyecto_nombre', p.n)
       .order('nro_cuota',{ascending:false});
     const tablaHTML = filas && filas.length>0 ? `
     <div class="card">
@@ -986,7 +986,7 @@ async function actualizarContadoresCuotas(){
   const counts = {};
   data.forEach(r=>{ counts[r.proyecto_nombre]=(counts[r.proyecto_nombre]||0)+1; });
   PR.forEach(p=>{
-    const match = Object.keys(counts).find(k=>k.includes(p.n.split('—')[0].trim()));
+    const match = Object.keys(counts).find(k=>k===p.n);
     if(match) p.c = counts[match];
   });
   rDT(); rc();
