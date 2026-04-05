@@ -162,6 +162,20 @@ tr:hover td{background:var(--s2);}
 .pb{flex:1;height:4px;background:var(--border);border-radius:2px;min-width:40px;}
 .pf{height:4px;border-radius:2px;}
 .pt2{font-size:11px;color:var(--muted);white-space:nowrap;}
+
+@media(max-width:768px){
+  #CG{grid-template-columns:1fr!important;}
+  .tw{overflow-x:auto!important;}
+  .tw table{min-width:480px;}
+  .ph{flex-wrap:wrap;}
+  .g2f{grid-template-columns:1fr!important;}
+  .g4,.g5{grid-template-columns:repeat(2,1fr)!important;}
+  .page{padding:14px!important;}
+}
+@media(max-width:480px){
+  #CG{grid-template-columns:1fr!important;}
+  .g4,.g5{grid-template-columns:1fr!important;}
+}
 </style>
 </head>
 <body>
@@ -229,7 +243,7 @@ tr:hover td{background:var(--s2);}
   <div class="sl">Cobros pendientes de confirmación</div>
   <div class="ag" id="AG"><div class="loading"><div class="spinner"></div>Cargando cobros pendientes…</div></div>
   <div class="sl">Proyectos</div>
-  <div class="card"><div class="tw" id="DT"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+  <div class="card"><div class="tw" id="DT" style="overflow-x:auto;"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
 </div>
 
 <!-- PROYECTOS -->
@@ -242,7 +256,7 @@ tr:hover td{background:var(--s2);}
         <button class="btn btnp" onclick="om('compra')">+ Nueva compra</button>
       </div>
     </div>
-    <div id="CG" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;"></div>
+    <div id="CG" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:13px;"></div>
   </div>
   <div id="PF" style="display:none;"></div>
 </div>
@@ -435,6 +449,38 @@ tr:hover td{background:var(--s2);}
 </div></div>
 
 <script>
+
+
+// ─── EDITAR PROYECTO ─────────────────────────────────────────────────
+let _editProyId = null;
+function editarProyecto(id){
+  const p = PR.find(x=>x.id===id);
+  if(!p) return;
+  _editProyId = id;
+  $$('ep-estado').value = p.e || 'En obra';
+  $$('ep-m2').value = p.m2 || '';
+  $$('ep-entrega').value = p.ent || '';
+  $$('ep-renta').value = p.r || '';
+  $$('ep-inv').value = p.inv || '';
+  $$('m-editar-proyecto').classList.add('open');
+}
+
+function guardarEdicionProyecto(){
+  const p = PR.find(x=>x.id===_editProyId);
+  if(!p) return;
+  p.e = $$('ep-estado').value;
+  p.m2 = parseFloat($$('ep-m2').value) || p.m2;
+  p.ent = $$('ep-entrega').value || null;
+  p.r = $$('ep-renta').value || null;
+  p.inv = $$('ep-inv').value || p.inv;
+  // Actualizar badge color según estado
+  const badgeMap = {'En obra':'bb','En alquiler':'bg','Uso propio':'bgr','En constr.':'bb','Seña — en proceso':'ba','Pagado':'bgr'};
+  p.ec = badgeMap[p.e] || 'bb';
+  cm('m-editar-proyecto');
+  toast('Proyecto actualizado ✓','ok2');
+  rDT(); rc();
+  VF(_editProyId);
+}
 
 // ─── EDITAR / BORRAR CUOTAS ──────────────────────────────────────────
 function editarCuota(id, proyecto, nro, fecha, ars, cot, usd, forma){
@@ -897,13 +943,13 @@ function rc(){
   $$('CG').innerHTML=d.map(p=>`
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:15px;cursor:pointer;box-shadow:var(--sh);" onclick="VF('${p.id}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:500;flex:1;">${p.n}</div>
+        <div style="font-size:13px;font-weight:500;flex:1;line-height:1.3;word-break:break-word;">${p.n}</div>
         <span class="badge ${p.ec}" style="flex-shrink:0;margin-left:8px;">${p.e}</span>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">${p.t} · ${p.s}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">M²</div><div style="font-size:13px;font-weight:500;" class="mono">${p.m2}</div></div>
-        <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">Invertido</div><div style="font-size:12px;font-weight:500;" class="mono">${p.inv}</div></div>
+        <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">Invertido</div><div style="font-size:11px;font-weight:500;word-break:break-word;" class="mono">${p.inv}</div></div>
       </div>
       ${p.c!==null?`<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;"><span>Cuotas</span><span>${p.c}${p.tc?'/'+p.tc:''}</span></div><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div></div>`:''}
       ${p.r?`<div style="margin-top:8px;font-size:12px;color:var(--green);font-weight:500;">${p.r}</div>`:''}
@@ -1203,6 +1249,31 @@ function filtCaja(v){$$('CAJAMOV')?.querySelectorAll('.mov-row').forEach(r=>{if(
   <div class="ma">
     <button class="btn" onclick="cm('m-editar-cuota')">Cancelar</button>
     <button class="btn btnp" onclick="guardarEdicionCuota()">Guardar cambios</button>
+  </div>
+</div></div>
+
+<!-- MODAL EDITAR PROYECTO -->
+<div class="ov" id="m-editar-proyecto"><div class="modal">
+  <div class="mt2">Editar proyecto</div>
+  <div class="fg"><label class="fl">Estado</label>
+    <select class="fi" id="ep-estado">
+      <option>En obra</option>
+      <option>En alquiler</option>
+      <option>Uso propio</option>
+      <option>En constr.</option>
+      <option>Seña — en proceso</option>
+      <option>Pagado</option>
+    </select>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Superficie (m²)</label><input class="fi" type="number" id="ep-m2" step="0.01"></div>
+    <div class="fg"><label class="fl">Entrega estimada</label><input class="fi" type="text" id="ep-entrega" placeholder="Mar 2027"></div>
+  </div>
+  <div class="fg"><label class="fl">Renta mensual (ej: U$D 4.300/mes)</label><input class="fi" type="text" id="ep-renta" placeholder="U$D 4.300/mes"></div>
+  <div class="fg"><label class="fl">Total invertido</label><input class="fi" type="text" id="ep-inv" placeholder="U$D 186.148"></div>
+  <div class="ma">
+    <button class="btn" onclick="cm('m-editar-proyecto')">Cancelar</button>
+    <button class="btn btnp" onclick="guardarEdicionProyecto()">Guardar cambios</button>
   </div>
 </div></div>
 </body>
