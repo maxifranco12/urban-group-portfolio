@@ -5,7 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Urban Group — Portfolio</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+// ─── EDITAR / BORRAR CUOTAS ──────────────────────────────────────────
+function editarCuota(id, proyecto, nro, fecha, ars, cot, usd, forma){
+  $$('ec-id').value = id;
+  $$('ec-proyecto').textContent = proyecto + ' — Cuota ' + nro;
+  $$('ec-nro').value = nro;
+  $$('ec-fecha').value = fecha;
+  $$('ec-ars-display').value = ars ? Number(ars).toLocaleString('es-AR') : '';
+  $$('ec-ars').value = ars || '';
+  $$('ec-cot-display').value = cot ? Number(cot).toLocaleString('es-AR') : '';
+  $$('ec-cot').value = cot || '';
+  $$('ec-usd').value = usd || '';
+  $$('ec-forma').value = forma || 'Cheques 45 días';
+  $$('m-editar-cuota').classList.add('open');
+}
+
+async function guardarEdicionCuota(){
+  const id = $$('ec-id').value;
+  const monto_ars = parseFloat($$('ec-ars').value) || null;
+  const cotizacion = parseFloat($$('ec-cot').value) || null;
+  const monto_usd = cotizacion && monto_ars ? monto_ars/cotizacion : parseFloat($$('ec-usd').value) || null;
+  const {error} = await sb.from('pagos_cuotas').update({
+    nro_cuota: parseInt($$('ec-nro').value),
+    fecha: $$('ec-fecha').value,
+    monto_ars, cotizacion, monto_usd,
+    forma: $$('ec-forma').value
+  }).eq('id', id);
+  if(error){ toast('Error: '+error.message,'err'); return; }
+  cm('m-editar-cuota');
+  toast('Cuota actualizada ✓','ok2');
+  // Recargar la ficha actual
+  const proyId = PR.find(p=>p.n===$$('ec-proyecto').textContent.split(' — Cuota')[0])?.id;
+  if(proyId) VF(proyId);
+}
+
+async function borrarCuota(id, nro, proyecto){
+  if(!confirm('¿Borrar la Cuota '+nro+' de '+proyecto+'? Esta acción no se puede deshacer.')) return;
+  const {error} = await sb.from('pagos_cuotas').delete().eq('id', id);
+  if(error){ toast('Error: '+error.message,'err'); return; }
+  // Quitar la fila visualmente
+  const row = document.getElementById('cuota-row-'+id);
+  if(row) row.remove();
+  toast('Cuota '+nro+' eliminada','ok');
+  // Actualizar contador
+  const p = PR.find(p=>p.n===proyecto);
+  if(p && p.c) p.c--;
+  rDT(); rc();
+}
+</script>
 <style>
 :root{
   --bg:#f7f6f3;--surface:#fff;--s2:#fafaf8;
@@ -216,7 +264,7 @@ tr:hover td{background:var(--s2);}
     <div><div class="pt">Dashboard</div><div class="ps" id="dash-sub">Cargando datos…</div></div>
     <div class="gap">
       <button class="btn" onclick="om('compra')">+ Nueva compra</button>
-      <button class="btn btnp" onclick="om('pago')">+ Cargar pago</button>
+      <button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}},100)">+ Cargar pago</button>
     </div>
   </div>
   <div class="mg g5">
@@ -450,14 +498,14 @@ let pendKey = null;
 let pendCobros = [];
 
 const PR=[
-  {id:'ce',n:'Cerviño 3724 — 205',t:'Pozo Brukman',s:'Urban Group',m2:85.51,inv:'U$D 186.148',c:39,tc:48,e:'En obra',ec:'bb',ent:'Mar 2027'},
-  {id:'in',n:'Rep. de la India 2843 — P13',t:'Pozo Brukman',s:'Urban Group',m2:180.69,inv:'U$D 359.552',c:13,tc:48,e:'En obra',ec:'bb',ent:'Oct 2027'},
+  {id:'ce',n:'Cerviño 3724 — 205',t:'Pozo Brukman',s:'Urban Group',m2:85.51,inv:'U$D 186.148',c:40,tc:48,e:'En obra',ec:'bb',ent:'Mar 2027'},
+  {id:'in',n:'Rep. de la India 2843 — P13',t:'Pozo Brukman',s:'Urban Group',m2:180.69,inv:'U$D 359.552',c:14,tc:48,e:'En obra',ec:'bb',ent:'Oct 2027'},
   {id:'t6',n:'Terrada 622-624 — UF2',t:'Fábrica · Alquiler',s:'Urban Group',m2:800,inv:'U$D 765.480',c:null,tc:null,e:'En alquiler',ec:'bg',ent:null,r:'U$D 4.300/mes'},
   {id:'t5',n:'Terrada 526 — Local 2',t:'Local · Uso propio',s:'Urban Group',m2:206.5,inv:'U$D 417.751',c:null,tc:null,e:'Uso propio',ec:'bgr',ent:null},
   {id:'gi',n:'Giribone 2363',t:'Obra propia ISK',s:'Urban Group',m2:1151,inv:'U$D 578.119',c:7,tc:null,e:'En obra',ec:'ba',ent:'Jun 2026'},
   {id:'ar',n:'ARYA Sumba — D21',t:'Villa Indonesia',s:'Urban Group',m2:120,inv:'U$D 42.549',c:3,tc:36,e:'En constr.',ec:'bb',ent:'2027'},
-  {id:'c4',n:'Av. Córdoba 3350 — 404',t:'Pozo Brukman',s:'Maxi solo',m2:94.1,inv:'U$D 56.280',c:0,tc:48,e:'En obra',ec:'ba',ent:'TBD'},
-  {id:'c3',n:'Av. Córdoba 3350 — 403',t:'Pozo Brukman',s:'Tomi solo',m2:94.2,inv:'U$D 56.321',c:0,tc:48,e:'En obra',ec:'ba',ent:'TBD'},
+  {id:'c4',n:'Av. Córdoba 3350 — 404',t:'Pozo Brukman',s:'Maxi solo',m2:94.1,inv:'U$D 56.280',c:1,tc:48,e:'En obra',ec:'ba',ent:'TBD'},
+  {id:'c3',n:'Av. Córdoba 3350 — 403',t:'Pozo Brukman',s:'Tomi solo',m2:94.2,inv:'U$D 56.321',c:1,tc:48,e:'En obra',ec:'ba',ent:'TBD'},
   {id:'cuenca',n:'Cuenca Obra',t:'4 locales · 2 lotes',s:'Urban+Tomi',m2:null,inv:'U$D 701.000',c:null,tc:null,e:'Local 2 vendido',ec:'bg',ent:null,r:'U$D 9.000/mes (29 cuotas)'},
   {id:'pa',n:'Parque Avellaneda',t:'Oferta en proceso',s:'Urban Group',m2:null,inv:'U$D 10.000',c:null,tc:null,e:'Seña — en proceso',ec:'ba',ent:null},
 ];
@@ -740,6 +788,9 @@ async function guardarPago(){
     registrado_por:USUARIO
   });
   if(error){toast('Error: '+error.message,'err');return;}
+  // Guardar qué proyecto y cuota se pagó ANTES de limpiar campos
+  const proyectoNombre = $$('pago-proyecto').value;
+  const nroCuota = $$('pago-cuota').value;
   // Limpiar campos
   $$('pago-ars-display').value='';$$('pago-ars').value='';
   $$('pago-cot-display').value='';$$('pago-cot').value='';
@@ -748,8 +799,15 @@ async function guardarPago(){
   $$('cuota-sugerida').style.display='none';
   $$('pago-usd-calc').style.display='none';
   cm('m-pago');
-  const nro=$$('pago-cuota')?.value||'';
-  toast('Cuota '+(nro||'')+'registrada ✓','ok2');
+  toast('Cuota '+(nroCuota||'')+' registrada ✓','ok2');
+  // Refrescar la ficha si está abierta, o los contadores del dashboard
+  const proyObj = PR.find(p=>p.n===proyectoNombre);
+  if(proyObj && $$('PF').style.display!=='none'){
+    // La ficha está abierta — recargarla
+    VF(proyObj.id);
+  }
+  // Siempre actualizar contadores
+  actualizarContadoresCuotas().catch(()=>{});
 }
 
 async function guardarGasto(){
@@ -831,7 +889,7 @@ function pct(p){return p.tc?Math.round(p.c/p.tc*100):(p.c?60:0);}
 
 function rDT(){
   $$('DT').innerHTML=`<table><thead><tr><th>Proyecto</th><th>Socios</th><th>Invertido</th><th>Progreso</th><th>Estado</th><th></th></tr></thead><tbody>${
-    PR.map(p=>`<tr><td><div class="tn">${p.n}</div><div class="ts">${p.t}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></td><td><span class="badge ${p.ec}">${p.s}</span></td><td class="mono">${p.inv}</td><td>${p.c!==null?`<div class="prog"><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div><span class="pt2">${p.c}${p.tc?'/~'+p.tc:''}</span></div>`:`<span style="font-size:11px;color:var(--muted);">${p.r||'Pagado'}</span>`}</td><td><span class="badge ${p.ec}">${p.e}</span></td><td><button class="btn btns" onclick="VF('${p.id}')">Ver ficha</button></td></tr>`).join('')
+    PR.map(p=>`<tr><td><div class="tn">${p.n}</div><div class="ts">${p.t}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></td><td><span class="badge ${p.ec}">${p.s}</span></td><td class="mono">${p.inv}</td><td>${p.c!==null?`<div class="prog"><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div><span class="pt2">${p.c}${p.tc?'/'+p.tc:''}</span></div>`:`<span style="font-size:11px;color:var(--muted);">${p.r||'Pagado'}</span>`}</td><td><span class="badge ${p.ec}">${p.e}</span></td><td><button class="btn btns" onclick="VF('${p.id}')">Ver ficha</button></td></tr>`).join('')
   }<tr><td><div class="tn">Cuenca Obra</div><div class="ts">4 locales · Local 2 vendido a Gastón Duek</div></td><td><span class="badge bgr">Urban+Tomi</span></td><td class="mono">U$D 701.000</td><td><div style="font-size:11px;color:var(--green);">Venta L2: U$D 400.000<br>29 cuotas + 2 refuerzos</div></td><td><span class="badge bg">Local 2 vendido</span></td><td><button class="btn btns" onclick="VF('cuenca')">Ver ficha</button></td></tr></tbody></table>`;
 }
 
@@ -849,7 +907,7 @@ function rc(){
         <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">M²</div><div style="font-size:13px;font-weight:500;" class="mono">${p.m2}</div></div>
         <div style="background:var(--bg);border-radius:6px;padding:8px;"><div style="font-size:10px;color:var(--muted);">Invertido</div><div style="font-size:12px;font-weight:500;" class="mono">${p.inv}</div></div>
       </div>
-      ${p.c!==null?`<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;"><span>Cuotas</span><span>${p.c}${p.tc?'/~'+p.tc:''}</span></div><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div></div>`:''}
+      ${p.c!==null?`<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;"><span>Cuotas</span><span>${p.c}${p.tc?'/'+p.tc:''}</span></div><div class="pb"><div class="pf" style="width:${pct(p)}%;background:${bcol(p)};"></div></div></div>`:''}
       ${p.r?`<div style="margin-top:8px;font-size:12px;color:var(--green);font-weight:500;">${p.r}</div>`:''}
     </div>`).join('');
 }
@@ -912,7 +970,7 @@ async function VF(id){
   if(p.tc || p.c !== null){
     const {data} = await sb.from('pagos_cuotas')
       .select('nro_cuota, fecha, monto_usd, monto_ars, cotizacion, forma')
-      .ilike('proyecto_nombre', p.n)
+      .eq('proyecto_nombre', p.n)
       .order('nro_cuota',{ascending:false});
     if(data && data.length>0){
       cuotasPagadas = data.length;
@@ -927,7 +985,7 @@ async function VF(id){
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="om('pago')">+ Cargar pago</button></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}},100)">+ Cargar pago</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
@@ -951,20 +1009,24 @@ async function VF(id){
   if(cuotasPagadas!==null && cuotasPagadas>0){
     const {data:filas} = await sb.from('pagos_cuotas')
       .select('*')
-      .ilike('proyecto_nombre', p.n)
+      .eq('proyecto_nombre', p.n)
       .order('nro_cuota',{ascending:false});
     const tablaHTML = filas && filas.length>0 ? `
     <div class="card">
       <div class="ch"><div class="ct">Historial de cuotas pagadas</div><span class="badge bg">${filas.length} pagadas</span></div>
       <div class="tw"><table>
-        <thead><tr><th>N°</th><th>Fecha</th><th>Monto ARS</th><th>Cotización</th><th>USD</th><th>Forma</th></tr></thead>
-        <tbody>${filas.map(c=>`<tr>
+        <thead><tr><th>N°</th><th>Fecha</th><th>Monto ARS</th><th>Cotización</th><th>USD</th><th>Forma</th><th></th></tr></thead>
+        <tbody>${filas.map(c=>`<tr id="cuota-row-${c.id}">
           <td><b>${c.nro_cuota}</b></td>
           <td>${fmtFecha(c.fecha)}</td>
           <td class="mono">${c.monto_ars?Number(c.monto_ars).toLocaleString('es-AR'):'-'}</td>
           <td class="mono">${c.cotizacion?'$'+Number(c.cotizacion).toLocaleString('es-AR'):'-'}</td>
           <td class="mono ing">${fmtUSD(c.monto_usd||0)}</td>
           <td>${c.forma||'-'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btns" style="margin-right:4px;" onclick="editarCuota('${c.id}','${c.proyecto_nombre}',${c.nro_cuota},'${c.fecha}',${c.monto_ars||0},${c.cotizacion||0},${c.monto_usd||0},'${c.forma||''}')">✏️</button>
+            <button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);" onclick="borrarCuota('${c.id}','${c.nro_cuota}','${c.proyecto_nombre}')">🗑</button>
+          </td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>` : '';
@@ -1070,7 +1132,7 @@ async function sugerirCuota(){
   const pid = proyecto.split('—')[0].trim().toLowerCase().replace(/[^a-z0-9]/g,'_');
   const {data} = await sb.from('pagos_cuotas')
     .select('nro_cuota,fecha,monto_usd')
-    .ilike('proyecto_nombre', proyecto)
+    .eq('proyecto_nombre', proyecto)
     .order('nro_cuota',{ascending:false})
     .limit(1);
   if(data && data.length>0 && data[0].nro_cuota){
@@ -1097,5 +1159,40 @@ function TM(){const v=$$('pago-moneda').value;$$('pago-ars-row').style.display=v
 function tabCobro(k,el){['pend','hist'].forEach(t=>{const d=$$('tc-'+t);if(d)d.style.display=t===k?'block':'none';});document.querySelectorAll('#p-cobros .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');if(k==='hist')cargarCobrosPage();}
 function filtCaja(v){$$('CAJAMOV')?.querySelectorAll('.mov-row').forEach(r=>{if(!v){r.style.display='';return;}r.style.display=(v==='ing'&&r.dataset.tipo==='ing')||(v==='eg'&&r.dataset.tipo==='eg')?'':'none';});}
 </script>
+
+<!-- MODAL EDITAR CUOTA -->
+<div class="ov" id="m-editar-cuota"><div class="modal">
+  <div class="mt2">Editar cuota</div>
+  <input type="hidden" id="ec-id">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px;" id="ec-proyecto"></div>
+  <div class="frow">
+    <div class="fg"><label class="fl">N° cuota</label><input class="fi" type="number" id="ec-nro"></div>
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="ec-fecha"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Monto ARS</label>
+      <input class="fi" type="text" id="ec-ars-display" oninput="fmtInput(this,'ec-ars')">
+      <input type="hidden" id="ec-ars">
+    </div>
+    <div class="fg"><label class="fl">Cotización</label>
+      <input class="fi" type="text" id="ec-cot-display" oninput="fmtInput(this,'ec-cot')">
+      <input type="hidden" id="ec-cot">
+    </div>
+  </div>
+  <div class="fg"><label class="fl">USD (calculado o manual)</label><input class="fi" type="number" id="ec-usd"></div>
+  <div class="fg"><label class="fl">Forma</label>
+    <select class="fi" id="ec-forma">
+      <option>Cheques 45 días</option>
+      <option>Efectivo USD</option>
+      <option>Wire transfer</option>
+      <option>USDT</option>
+      <option>Mixto (USD + Ch B)</option>
+    </select>
+  </div>
+  <div class="ma">
+    <button class="btn" onclick="cm('m-editar-cuota')">Cancelar</button>
+    <button class="btn btnp" onclick="guardarEdicionCuota()">Guardar cambios</button>
+  </div>
+</div></div>
 </body>
 </html>
