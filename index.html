@@ -5,55 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Urban Group — Portfolio</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-// ─── EDITAR / BORRAR CUOTAS ──────────────────────────────────────────
-function editarCuota(id, proyecto, nro, fecha, ars, cot, usd, forma){
-  $$('ec-id').value = id;
-  $$('ec-proyecto').textContent = proyecto + ' — Cuota ' + nro;
-  $$('ec-nro').value = nro;
-  $$('ec-fecha').value = fecha;
-  $$('ec-ars-display').value = ars ? Number(ars).toLocaleString('es-AR') : '';
-  $$('ec-ars').value = ars || '';
-  $$('ec-cot-display').value = cot ? Number(cot).toLocaleString('es-AR') : '';
-  $$('ec-cot').value = cot || '';
-  $$('ec-usd').value = usd || '';
-  $$('ec-forma').value = forma || 'Cheques 45 días';
-  $$('m-editar-cuota').classList.add('open');
-}
-
-async function guardarEdicionCuota(){
-  const id = $$('ec-id').value;
-  const monto_ars = parseFloat($$('ec-ars').value) || null;
-  const cotizacion = parseFloat($$('ec-cot').value) || null;
-  const monto_usd = cotizacion && monto_ars ? monto_ars/cotizacion : parseFloat($$('ec-usd').value) || null;
-  const {error} = await sb.from('pagos_cuotas').update({
-    nro_cuota: parseInt($$('ec-nro').value),
-    fecha: $$('ec-fecha').value,
-    monto_ars, cotizacion, monto_usd,
-    forma: $$('ec-forma').value
-  }).eq('id', id);
-  if(error){ toast('Error: '+error.message,'err'); return; }
-  cm('m-editar-cuota');
-  toast('Cuota actualizada ✓','ok2');
-  // Recargar la ficha actual
-  const proyId = PR.find(p=>p.n===$$('ec-proyecto').textContent.split(' — Cuota')[0])?.id;
-  if(proyId) VF(proyId);
-}
-
-async function borrarCuota(id, nro, proyecto){
-  if(!confirm('¿Borrar la Cuota '+nro+' de '+proyecto+'? Esta acción no se puede deshacer.')) return;
-  const {error} = await sb.from('pagos_cuotas').delete().eq('id', id);
-  if(error){ toast('Error: '+error.message,'err'); return; }
-  // Quitar la fila visualmente
-  const row = document.getElementById('cuota-row-'+id);
-  if(row) row.remove();
-  toast('Cuota '+nro+' eliminada','ok');
-  // Actualizar contador
-  const p = PR.find(p=>p.n===proyecto);
-  if(p && p.c) p.c--;
-  rDT(); rc();
-}
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f7f6f3;--surface:#fff;--s2:#fafaf8;
@@ -483,6 +435,52 @@ tr:hover td{background:var(--s2);}
 </div></div>
 
 <script>
+
+// ─── EDITAR / BORRAR CUOTAS ──────────────────────────────────────────
+function editarCuota(id, proyecto, nro, fecha, ars, cot, usd, forma){
+  $$('ec-id').value = id;
+  $$('ec-proyecto').textContent = proyecto + ' — Cuota ' + nro;
+  $$('ec-nro').value = nro;
+  $$('ec-fecha').value = fecha;
+  $$('ec-ars-display').value = ars ? Number(ars).toLocaleString('es-AR') : '';
+  $$('ec-ars').value = ars || '';
+  $$('ec-cot-display').value = cot ? Number(cot).toLocaleString('es-AR') : '';
+  $$('ec-cot').value = cot || '';
+  $$('ec-usd').value = usd || '';
+  $$('ec-forma').value = forma || 'Cheques 45 días';
+  $$('m-editar-cuota').classList.add('open');
+}
+
+async function guardarEdicionCuota(){
+  const id = $$('ec-id').value;
+  const monto_ars = parseFloat($$('ec-ars').value) || null;
+  const cotizacion = parseFloat($$('ec-cot').value) || null;
+  const monto_usd = cotizacion && monto_ars ? monto_ars/cotizacion : parseFloat($$('ec-usd').value) || null;
+  const {error} = await sb.from('pagos_cuotas').update({
+    nro_cuota: parseInt($$('ec-nro').value),
+    fecha: $$('ec-fecha').value,
+    monto_ars, cotizacion, monto_usd,
+    forma: $$('ec-forma').value
+  }).eq('id', id);
+  if(error){ toast('Error: '+error.message,'err'); return; }
+  cm('m-editar-cuota');
+  toast('Cuota actualizada ✓','ok2');
+  const proyId = PR.find(p=>p.n===$$('ec-proyecto').textContent.split(' — Cuota')[0])?.id;
+  if(proyId) VF(proyId);
+}
+
+async function borrarCuota(id, nro, proyecto){
+  if(!confirm('¿Borrar la Cuota '+nro+' de '+proyecto+'? Esta acción no se puede deshacer.')) return;
+  const {error} = await sb.from('pagos_cuotas').delete().eq('id', id);
+  if(error){ toast('Error: '+error.message,'err'); return; }
+  const row = document.getElementById('cuota-row-'+id);
+  if(row) row.remove();
+  toast('Cuota '+nro+' eliminada','ok');
+  const p = PR.find(p=>p.n===proyecto);
+  if(p && p.c > 0) p.c--;
+  actualizarContadoresCuotas().catch(()=>{}); rDT(); rc();
+}
+
 // ═══════════════════════════════════════════════════
 // SUPABASE CONFIG
 // ═══════════════════════════════════════════════════
