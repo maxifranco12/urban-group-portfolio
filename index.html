@@ -982,10 +982,9 @@ function rc(){
 }
 
 async function VF(id){
-  const navProy=document.querySelector('[data-page=proyectos]');
-  if(navProy&&!navProy.classList.contains('active')) nav(navProy);
   if(id==='cuenca'){
-    $$('PL').style.display='none';$$('PF').style.display='block';
+    $$('PL').style.display='none';
+    $$('PF').style.display='block';
     $$('PF').innerHTML=`
       <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
       <div class="ph">
@@ -1016,28 +1015,49 @@ async function VF(id){
         <div style="padding:10px 16px;background:var(--s2);border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
           Cuotas cobradas: ene/feb/mar 2026 (U$D 9.000 c/u) · <b style="color:var(--amber);">Faltan 29 cuotas + 2 refuerzos</b> · Refuerzos: ene 2027 y ene 2028
         </div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ct">Estado de los 4 locales</div></div>
+        <table><thead><tr><th>Local</th><th>Lote</th><th>Estado</th></tr></thead><tbody>
+          <tr><td>Local 1</td><td>Cuenca 921</td><td><span class="badge bgr">Sin vender</span></td></tr>
+          <tr><td><b>Local 2</b></td><td>Cuenca 921</td><td><span class="badge bg">Vendido — Gastón Duek · U$D 400.000</span></td></tr>
+          <tr><td>Local 3</td><td>Cuenca 925</td><td><span class="badge bgr">Sin vender</span></td></tr>
+          <tr><td>Local 4</td><td>Cuenca 925</td><td><span class="badge bgr">Sin vender</span></td></tr>
+        </tbody></table>
       </div>`;
     return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
-  $$('PL').style.display='none';$$('PF').style.display='block';
+  // Activar la sección de proyectos si no está activa
+  const navProy = document.querySelector('[data-page=proyectos]');
+  if(navProy) nav(navProy);
+  $$('PL').style.display='none';
+  $$('PF').style.display='block';
+  // Mostrar loading mientras carga
   $$('PF').innerHTML=`<div class="loading"><div class="spinner"></div>Cargando ficha…</div>`;
-  let cuotasPagadas=null,ultimaCuota=null,totalUSD=0;
-  if(p.tc||p.c!==null){
-    const {data}=await sb.from('pagos_cuotas').select('nro_cuota,fecha,monto_usd,monto_ars,cotizacion,forma').eq('proyecto_nombre',p.n).order('nro_cuota',{ascending:false});
-    if(data&&data.length>0){cuotasPagadas=data.length;ultimaCuota=data[0];totalUSD=data.reduce((s,r)=>s+Number(r.monto_usd||0),0);}
-    else cuotasPagadas=0;
+  // Traer cuotas reales desde Supabase
+  let cuotasPagadas = null;
+  let ultimaCuota = null;
+  let totalUSD = 0;
+  if(p.tc || p.c !== null){
+    const {data} = await sb.from('pagos_cuotas')
+      .select('nro_cuota, fecha, monto_usd, monto_ars, cotizacion, forma')
+      .eq('proyecto_nombre', p.n)
+      .order('nro_cuota',{ascending:false});
+    if(data && data.length>0){
+      cuotasPagadas = data.length;
+      ultimaCuota = data[0];
+      totalUSD = data.reduce((s,r)=>s+Number(r.monto_usd||0),0);
+    } else {
+      cuotasPagadas = 0;
+    }
   }
-  const pct2=p.tc&&cuotasPagadas?Math.round(cuotasPagadas/p.tc*100):0;
+  const pct2 = p.tc && cuotasPagadas ? Math.round(cuotasPagadas/p.tc*100) : 0;
   $$('PF').innerHTML=`
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap">
-        <span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span>
-        <button class="btn btns" onclick="editarProyecto('${id}')">✏️ Editar</button>
-        <button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}}},100)">+ Cargar pago</button>
-      </div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}},100)">+ Cargar pago</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
@@ -1055,142 +1075,202 @@ async function VF(id){
         ${ultimaCuota?`<div class="fr2"><span class="fk">Última cuota</span><span class="fv mono">N°${ultimaCuota.nro_cuota} · ${fmtFecha(ultimaCuota.fecha)} · ${fmtUSD(ultimaCuota.monto_usd)}</span></div>`:''}
         `:''}
       </div>
-    </div>`;
-  if(cuotasPagadas!==null&&cuotasPagadas>0){
-    const {data:filas}=await sb.from('pagos_cuotas').select('*').eq('proyecto_nombre',p.n).order('nro_cuota',{ascending:false});
-    if(filas&&filas.length>0){
-      $$('PF').innerHTML+=`<div class="card">
-        <div class="ch"><div class="ct">Historial de cuotas pagadas</div><span class="badge bg">${filas.length} pagadas</span></div>
-        <div class="tw"><table>
-          <thead><tr><th>N°</th><th>Fecha</th><th>Monto ARS</th><th>Cotización</th><th>USD</th><th>Forma</th><th></th></tr></thead>
-          <tbody>${filas.map(c=>`<tr id="cuota-row-${c.id}">
-            <td><b>${c.nro_cuota}</b></td>
-            <td>${fmtFecha(c.fecha)}</td>
-            <td class="mono">${c.monto_ars?Number(c.monto_ars).toLocaleString('es-AR'):'-'}</td>
-            <td class="mono">${c.cotizacion?'$'+Number(c.cotizacion).toLocaleString('es-AR'):'-'}</td>
-            <td class="mono ing">${fmtUSD(c.monto_usd||0)}</td>
-            <td>${c.forma||'-'}</td>
-            <td style="white-space:nowrap;">
-              <button class="btn btns" style="margin-right:4px;"
-                data-id="${c.id}" data-proyecto="${c.proyecto_nombre}" data-nro="${c.nro_cuota}"
-                data-fecha="${c.fecha||''}" data-ars="${c.monto_ars||0}" data-cot="${c.cotizacion||0}"
-                data-usd="${c.monto_usd||0}" data-forma="${(c.forma||'').replace(/"/g,'&quot;')}"
-                onclick="const d=this.dataset;editarCuota(d.id,d.proyecto,d.nro,d.fecha,d.ars,d.cot,d.usd,d.forma)">✏️</button>
-              <button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);"
-                data-id="${c.id}" data-nro="${c.nro_cuota}" data-proyecto="${c.proyecto_nombre}"
-                onclick="const d=this.dataset;borrarCuota(d.id,d.nro,d.proyecto)">🗑</button>
-            </td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
+    </div>
+  `;
+  // Cargar tabla de cuotas por separado (sin await dentro del template)
+  if(cuotasPagadas!==null && cuotasPagadas>0){
+    const {data:filas} = await sb.from('pagos_cuotas')
+      .select('*')
+      .eq('proyecto_nombre', p.n)
+      .order('nro_cuota',{ascending:false});
+    const tablaHTML = filas && filas.length>0 ? `
+    <div class="card">
+      <div class="ch"><div class="ct">Historial de cuotas pagadas</div><span class="badge bg">${filas.length} pagadas</span></div>
+      <div class="tw"><table>
+        <thead><tr><th>N°</th><th>Fecha</th><th>Monto ARS</th><th>Cotización</th><th>USD</th><th>Forma</th><th></th></tr></thead>
+        <tbody>${filas.map(c=>`<tr id="cuota-row-${c.id}">
+          <td><b>${c.nro_cuota}</b></td>
+          <td>${fmtFecha(c.fecha)}</td>
+          <td class="mono">${c.monto_ars?Number(c.monto_ars).toLocaleString('es-AR'):'-'}</td>
+          <td class="mono">${c.cotizacion?'$'+Number(c.cotizacion).toLocaleString('es-AR'):'-'}</td>
+          <td class="mono ing">${fmtUSD(c.monto_usd||0)}</td>
+          <td>${c.forma||'-'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btns" style="margin-right:4px;"
+              data-id="${c.id}"
+              data-proyecto="${c.proyecto_nombre}"
+              data-nro="${c.nro_cuota}"
+              data-fecha="${c.fecha||''}"
+              data-ars="${c.monto_ars||0}"
+              data-cot="${c.cotizacion||0}"
+              data-usd="${c.monto_usd||0}"
+              data-forma="${(c.forma||'').replace(/"/g,'&quot;')}"
+              onclick="const d=this.dataset;editarCuota(d.id,d.proyecto,d.nro,d.fecha,d.ars,d.cot,d.usd,d.forma)">✏️</button>
+            <button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);"
+              data-id="${c.id}"
+              data-nro="${c.nro_cuota}"
+              data-proyecto="${c.proyecto_nombre}"
+              onclick="const d=this.dataset;borrarCuota(d.id,d.nro,d.proyecto)">🗑</button>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>` : '';
+    $$('PF').innerHTML += tablaHTML;
   } else if(cuotasPagadas===0){
-    $$('PF').innerHTML+=`<div class="card"><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Sin cuotas registradas todavía.</div></div>`;
+    $$('PF').innerHTML += `<div class="card"><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Sin cuotas registradas todavía.</div></div>`;
   }
-  const proj=PR.find(x=>x.id===id);
-  if(proj&&cuotasPagadas!==null) proj.c=cuotasPagadas;
+  // Actualizar contador en PR
+  const proj = PR.find(x=>x.id===id);
+  if(proj && cuotasPagadas!==null) proj.c = cuotasPagadas;
 }
 
+// ═══════════════════════════════════════════════════
+// REPORTE
+// ═══════════════════════════════════════════════════
 
+async function cargarProyectosDeSupabase(){
+  const {data, error} = await sb.from('proyectos').select('*');
+  if(error || !data) return;
+  data.forEach(row => {
+    const p = PR.find(x=>x.id===row.id);
+    if(p){
+      p.n   = row.nombre || p.n;
+      p.t   = row.tipo   || p.t;
+      p.s   = row.socios || p.s;
+      p.m2  = row.m2     || p.m2;
+      p.inv = row.inv_usd|| p.inv;
+      p.e   = row.estado || p.e;
+      p.ec  = row.estado_badge || p.ec;
+      p.ent = row.entrega|| p.ent;
+      p.r   = row.renta  || p.r;
+      p.tc  = row.cuotas_total || p.tc;
+    }
+  });
+}
 
-<!-- MODAL PAGO CUOTA -->
-<div class="ov" id="m-pago"><div class="modal">
-  <div class="mt2">Cargar pago de cuota</div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pago-proyecto" onchange="sugerirCuota()"><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Giribone 2363</option><option>ARYA Sumba — D21</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option></select></div>
-  <div id="cuota-sugerida" style="display:none;margin-bottom:10px;padding:9px 12px;background:var(--blue-lt);border:1px solid var(--blue-bg);border-radius:var(--r);font-size:12px;color:var(--blue);display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <span id="cuota-sugerida-txt"></span>
-    <button class="btn btns" style="background:var(--blue);color:#fff;border-color:var(--blue);flex-shrink:0;" onclick="aplicarCuotaSugerida()">Usar esta</button>
-  </div>
-  <div class="frow"><div class="fg"><label class="fl">N° cuota</label><input class="fi" type="number" id="pago-cuota" placeholder="—" oninput="recalcUSD()"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="pago-fecha"></div></div>
-  <div class="fg"><label class="fl">Moneda</label><select class="fi" id="pago-moneda" onchange="TM()"><option value="ars">Pesos ARS</option><option value="usd">USD directo</option></select></div>
-  <div class="frow" id="pago-ars-row">
-    <div class="fg"><label class="fl">Monto ARS</label>
-      <input class="fi" type="text" id="pago-ars-display" placeholder="0" oninput="fmtInput(this,'pago-ars')" style="font-variant-numeric:tabular-nums;">
-      <input type="hidden" id="pago-ars">
+async function actualizarContadoresCuotas(){
+  const {data} = await sb.from('pagos_cuotas').select('proyecto_nombre');
+  if(!data) return;
+  const counts = {};
+  data.forEach(r=>{ counts[r.proyecto_nombre]=(counts[r.proyecto_nombre]||0)+1; });
+  PR.forEach(p=>{
+    const match = Object.keys(counts).find(k=>k===p.n);
+    if(match) p.c = counts[match];
+  });
+  rDT(); rc();
+}
+
+async function generarReporte(){
+  $$('REP-CONTENT').innerHTML='<div class="loading"><div class="spinner"></div>Generando reporte desde la base de datos…</div>';
+  const [saldo, {data:cobros}, {data:gastos}, {data:alarmas}] = await Promise.all([
+    calcularSaldo(),
+    sb.from('cobros').select('*'),
+    sb.from('gastos').select('monto_usd'),
+    sb.from('alarmas').select('id').eq('resuelta',false)
+  ]);
+  const pend=(cobros||[]).filter(c=>!c.cobrado).reduce((s,c)=>s+Number(c.monto),0);
+  const totalGastos=(gastos||[]).reduce((s,g)=>s+Number(g.monto_usd),0);
+  const fecha=new Date().toLocaleDateString('es-AR');
+  $$('REP-CONTENT').innerHTML=`
+    <div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);display:flex;justify-content:space-between;align-items:center;">
+      <div><div style="font-size:15px;font-weight:500;">Reporte del portfolio</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">Generado el ${fecha} · Datos en tiempo real desde Supabase</div></div>
+      <button class="btn btns" onclick="window.print()">Imprimir / PDF</button>
     </div>
-    <div class="fg"><label class="fl">Cotización</label>
-      <input class="fi" type="text" id="pago-cot-display" placeholder="1.420" oninput="fmtInput(this,'pago-cot');recalcUSD()">
-      <input type="hidden" id="pago-cot">
+    <div class="mg g4" style="margin-bottom:16px;">
+      <div class="mc ag"><div class="ml">Saldo caja USD</div><div class="mv mono" style="color:var(--blue);">${fmtUSD(saldo||0)}</div><div class="ms">al ${fecha}</div></div>
+      <div class="mc ag"><div class="ml">Pendientes confirmar</div><div class="mv mono" style="color:var(--amber);">${fmtUSD(pend)}</div><div class="ms">requieren tu acción</div></div>
+      <div class="mc ar"><div class="ml">Gastos registrados</div><div class="mv mono">${fmtUSD(totalGastos)}</div><div class="ms">todos los proyectos</div></div>
+      <div class="mc ab"><div class="ml">Alarmas activas</div><div class="mv mono">${(alarmas||[]).length}</div><div class="ms">sin resolver</div></div>
     </div>
-  </div>
-  <div class="fg" id="pago-usd-row" style="display:none;">
-    <label class="fl">Monto USD</label>
-    <input class="fi" type="text" id="pago-usd-display" placeholder="0" oninput="fmtInput(this,'pago-usd')">
-    <input type="hidden" id="pago-usd">
-  </div>
-  <div id="pago-usd-calc" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--green-lt);border:1px solid var(--green-bg);border-radius:var(--r);font-size:12px;color:var(--green);">
-    Equivale a <strong id="pago-usd-calc-val"></strong>
-  </div>
-  <div class="fg"><label class="fl">Forma</label><select class="fi" id="pago-forma"><option>Cheques 45 días</option><option>Efectivo USD</option><option>Wire transfer</option><option>USDT</option></select></div>
-  <div class="fg"><label class="fl">Nota</label><input class="fi" type="text" id="pago-nota"></div>
-  <div class="ma"><button class="btn" onclick="cm('m-pago')">Cancelar</button><button class="btn btnp" onclick="guardarPago()">Guardar pago</button></div>
-</div></div>
+    <div class="card">
+      <div class="ch"><div class="ct">Estado por proyecto</div></div>
+      <div class="tw"><table><thead><tr><th>Proyecto</th><th>Socios</th><th>M²</th><th>Invertido</th><th>Estado</th></tr></thead><tbody>
+        ${PR.map(p=>`<tr><td><div class="tn">${p.n}</div></td><td>${p.s}</td><td class="mono">${p.m2}</td><td class="mono">${p.inv}</td><td><span class="badge ${p.ec}">${p.e}</span></td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  toast('Reporte generado ✓','ok2');
+}
 
-<!-- MODAL GASTO -->
-<div class="ov" id="m-gasto"><div class="modal">
-  <div class="mt2">Registrar gasto</div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="g-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
-  <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Otro</option></select></div>
-  <div class="frow"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div></div>
-  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
-  <div class="info-box info-red" style="margin-bottom:0;">Al guardar, el monto se descontará del saldo de la Caja USD.</div>
-  <div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" onclick="guardarGasto()">Registrar gasto</button></div>
-</div></div>
+// ═══════════════════════════════════════════════════
+// MODALES Y UTILS
+// ═══════════════════════════════════════════════════
+const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso'};
+function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();}
+function cm(id){$$(id).classList.remove('open');}
+document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
-<!-- MODAL INGRESO/EGRESO MANUAL -->
-<div class="ov" id="m-ingreso"><div class="modal">
-  <div class="mt2" id="IT">Registrar ingreso</div>
-  <div class="frow"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="mov-monto"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="mov-fecha"></div></div>
-  <div class="fg"><label class="fl">Concepto</label><input class="fi" type="text" id="mov-concepto"></div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="mov-proyecto"><option>General</option><option>Terrada 624</option><option>Cuenca</option><option>ARYA Sumba</option><option>Parque Avellaneda</option></select></div>
-  <div class="ma"><button class="btn" onclick="cm('m-ingreso')">Cancelar</button><button class="btn btnp" onclick="guardarMovimiento()">Guardar</button></div>
-</div></div>
+// ── FORMATEO DE NÚMEROS ──────────────────────────────────────────
+function fmtInput(displayEl, hiddenId){
+  const raw = displayEl.value.replace(/\./g,'').replace(/[^0-9]/g,'');
+  const num = parseInt(raw)||0;
+  displayEl.value = num>0 ? num.toLocaleString('es-AR') : '';
+  const hidden = $$(hiddenId);
+  if(hidden) hidden.value = num||'';
+  // Actualizar calc USD si corresponde
+  if(hiddenId==='pago-ars'||hiddenId==='pago-cot') recalcUSD();
+}
 
-<!-- MODAL ALARMA -->
-<div class="ov" id="m-alarma"><div class="modal">
-  <div class="mt2">Nueva alarma</div>
-  <div class="fg"><label class="fl">Tipo</label><select class="fi" id="al-tipo"><option>Vencimiento cuota</option><option>Cobro alquiler</option><option>Cuota de venta</option><option>Renovación contrato</option><option>Gasto pendiente</option><option>Otro</option></select></div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="al-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
-  <div class="frow"><div class="fg"><label class="fl">Fecha límite</label><input class="fi" type="date" id="al-fecha"></div><div class="fg"><label class="fl">Prioridad</label><select class="fi" id="al-prior"><option value="urgente">Urgente</option><option value="media">Media</option><option value="baja">Baja</option></select></div></div>
-  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="al-desc"></div>
-  <div class="ma"><button class="btn" onclick="cm('m-alarma')">Cancelar</button><button class="btn btnp" onclick="guardarAlarma()">Crear alarma</button></div>
-</div></div>
+function recalcUSD(){
+  const ars = parseFloat($$('pago-ars')?.value)||0;
+  const cot = parseFloat($$('pago-cot')?.value)||0;
+  const calcDiv = $$('pago-usd-calc');
+  if(!calcDiv) return;
+  if(ars>0 && cot>0){
+    const usd = ars/cot;
+    $$('pago-usd-calc-val').textContent = fmtUSD(usd);
+    calcDiv.style.display='block';
+  } else {
+    calcDiv.style.display='none';
+  }
+}
 
-<!-- MODAL COMPRA -->
-<div class="ov" id="m-compra"><div class="modal">
-  <div class="mt2">Registrar nueva compra</div>
-  <div class="fg"><label class="fl">Nombre del proyecto</label><input class="fi" type="text" id="c-nombre"></div>
-  <div class="frow"><div class="fg"><label class="fl">Socios</label><select class="fi" id="c-socios"><option>Urban Group</option><option>Maxi solo</option><option>Tomi solo</option></select></div><div class="fg"><label class="fl">M²</label><input class="fi" type="number" id="c-m2"></div></div>
-  <div class="frow"><div class="fg"><label class="fl">Precio USD</label><input class="fi" type="number" id="c-precio"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="c-fecha"></div></div>
-  <div class="fg"><label class="fl">Desarrollador</label><input class="fi" type="text" id="c-dev"></div>
-  <div class="fg"><label class="fl">Entrega estimada</label><input class="fi" type="text" id="c-entrega" placeholder="Jun 2028"></div>
-  <div class="ma"><button class="btn" onclick="cm('m-compra')">Cancelar</button><button class="btn btnp" onclick="toast('Proyecto guardado ✓','ok2');cm('m-compra')">Crear proyecto</button></div>
-</div></div>
+// ── SUGERENCIA DE CUOTA ──────────────────────────────────────────
+let _cuotaSugerida = null;
 
-<!-- MODAL CONFIRMAR COBRO -->
-<div class="ov" id="m-confirmar">
-  <div class="cp">
-    <div class="cp-t">Confirmar cobro</div>
-    <div class="cp-d">¿Confirmás que recibiste este pago? Al confirmar, el monto se acredita en la Caja USD y queda guardado para todos.</div>
-    <div class="cp-amt" id="cp-amt"></div>
-    <div class="cp-meta" id="cp-meta"></div>
-    <div class="fg"><label class="fl">Fecha en que lo cobraste</label><input class="fi" type="date" id="cp-f"></div>
-    <div class="fg"><label class="fl">Forma de cobro</label>
-      <select class="fi" id="cp-fm"><option>Efectivo USD billete</option><option>Transferencia USD</option><option>Cheque</option><option>Crypto USDT</option></select>
-    </div>
-    <div class="fg"><label class="fl">Nota (opcional)</label><input class="fi" type="text" id="cp-n" placeholder="Ej: me lo trajo en mano"></div>
-    <div class="ma">
-      <button class="btn" onclick="cm('m-confirmar')">Cancelar</button>
-      <button class="btn btng" id="btn-confirmar" style="font-size:13px;padding:9px 20px;" onclick="ejecutarCobro()">Confirmar cobro → entra a caja</button>
-    </div>
-  </div>
-</div>
+async function sugerirCuota(){
+  const proyecto = $$('pago-proyecto').value;
+  const div = $$('cuota-sugerida');
+  const txt = $$('cuota-sugerida-txt');
+  div.style.display='none';
+  _cuotaSugerida = null;
+  if(!proyecto) return;
+  // Buscar la última cuota pagada de este proyecto en Supabase
+  const pid = proyecto.split('—')[0].trim().toLowerCase().replace(/[^a-z0-9]/g,'_');
+  const {data} = await sb.from('pagos_cuotas')
+    .select('nro_cuota,fecha,monto_usd')
+    .eq('proyecto_nombre', proyecto)
+    .order('nro_cuota',{ascending:false})
+    .limit(1);
+  if(data && data.length>0 && data[0].nro_cuota){
+    const ultima = data[0];
+    const siguiente = ultima.nro_cuota + 1;
+    _cuotaSugerida = {nro: siguiente, ref: ultima};
+    txt.innerHTML = `Última registrada: <b>Cuota ${ultima.nro_cuota}</b> (${fmtFecha(ultima.fecha)}, ${fmtUSD(ultima.monto_usd||0)}) → Siguiente: <b>Cuota ${siguiente}</b>`;
+    div.style.display='flex';
+  } else {
+    // No hay cuotas previas — cuota 1
+    _cuotaSugerida = {nro: 1, ref: null};
+    txt.innerHTML = `Sin pagos registrados para este proyecto → Comenzar con <b>Cuota 1</b>`;
+    div.style.display='flex';
+  }
+}
+
+function aplicarCuotaSugerida(){
+  if(!_cuotaSugerida) return;
+  $$('pago-cuota').value = _cuotaSugerida.nro;
+  toast('Cuota '+_cuotaSugerida.nro+' cargada ✓','ok');
+}
+
+function TM(){const v=$$('pago-moneda').value;$$('pago-ars-row').style.display=v==='usd'?'none':'grid';$$('pago-usd-row').style.display=v==='ars'?'none':'block';$$('pago-usd-calc').style.display='none';}
+function tabCobro(k,el){['pend','hist'].forEach(t=>{const d=$$('tc-'+t);if(d)d.style.display=t===k?'block':'none';});document.querySelectorAll('#p-cobros .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');if(k==='hist')cargarCobrosPage();}
+function filtCaja(v){$$('CAJAMOV')?.querySelectorAll('.mov-row').forEach(r=>{if(!v){r.style.display='';return;}r.style.display=(v==='ing'&&r.dataset.tipo==='ing')||(v==='eg'&&r.dataset.tipo==='eg')?'':'none';});}
+</script>
 
 <!-- MODAL EDITAR CUOTA -->
 <div class="ov" id="m-editar-cuota"><div class="modal">
   <div class="mt2">Editar cuota</div>
-  <div class="fg"><div id="ec-proyecto" style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--muted);"></div></div>
   <input type="hidden" id="ec-id">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px;" id="ec-proyecto"></div>
   <div class="frow">
     <div class="fg"><label class="fl">N° cuota</label><input class="fi" type="number" id="ec-nro"></div>
     <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="ec-fecha"></div>
@@ -1208,7 +1288,11 @@ async function VF(id){
   <div class="fg"><label class="fl">USD (calculado o manual)</label><input class="fi" type="number" id="ec-usd"></div>
   <div class="fg"><label class="fl">Forma</label>
     <select class="fi" id="ec-forma">
-      <option>Cheques 45 días</option><option>Efectivo USD</option><option>Wire transfer</option><option>USDT</option><option>Mixto (USD + Ch B)</option>
+      <option>Cheques 45 días</option>
+      <option>Efectivo USD</option>
+      <option>Wire transfer</option>
+      <option>USDT</option>
+      <option>Mixto (USD + Ch B)</option>
     </select>
   </div>
   <div class="ma">
@@ -1223,8 +1307,13 @@ async function VF(id){
   <div class="frow">
     <div class="fg"><label class="fl">Estado</label>
       <select class="fi" id="ep-estado">
-        <option>En obra</option><option>En alquiler</option><option>Uso propio</option>
-        <option>En constr.</option><option>Seña — en proceso</option><option>Pagado</option><option>Local 2 vendido</option>
+        <option>En obra</option>
+        <option>En alquiler</option>
+        <option>Uso propio</option>
+        <option>En constr.</option>
+        <option>Seña — en proceso</option>
+        <option>Pagado</option>
+        <option>Local 2 vendido</option>
       </select>
     </div>
     <div class="fg"><label class="fl">Superficie (m²)</label><input class="fi" type="number" id="ep-m2" step="0.01"></div>
@@ -1241,6 +1330,5 @@ async function VF(id){
     <button class="btn btnp" onclick="guardarEdicionProyecto()">Guardar cambios</button>
   </div>
 </div></div>
-
 </body>
 </html>
