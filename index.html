@@ -1224,6 +1224,15 @@ function recalcUSD(){
   }
 }
 
+
+function abrirPagoDesdeficha(){
+  om('pago');
+  setTimeout(()=>{
+    const titulo=document.querySelector('#PF .pt')?.textContent;
+    const sel=$('pago-proyecto');
+    if(sel&&titulo){for(let o of sel.options){if(o.value===titulo){sel.value=titulo;sugerirCuota();break;}}}
+  },150);
+}
 // ── SUGERENCIA DE CUOTA ──────────────────────────────────────────
 let _cuotaSugerida = null;
 
