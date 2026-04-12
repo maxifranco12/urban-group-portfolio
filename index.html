@@ -1057,7 +1057,7 @@ async function VF(id){
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}},100)">+ Cargar pago</button></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="abrirPagoDesdeficha()">+ Cargar pago</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
