@@ -597,7 +597,8 @@ function fmtFecha(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('es-
 
 // ═══════════════════════════════════════════════════
 // LOGIN
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════  },150);
+}
 
 let _fichaProyectoNombre='';
 function abrirPagoDesdeficha(){
@@ -1037,6 +1038,7 @@ async function VF(id){
     return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
+  _fichaProyectoNombre=p.n;
   _fichaProyectoNombre=p.n;
   // Activar la sección de proyectos si no está activa
   const navProy = document.querySelector('[data-page=proyectos]');
