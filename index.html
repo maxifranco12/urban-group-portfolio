@@ -597,17 +597,7 @@ function fmtFecha(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('es-
 
 // ═══════════════════════════════════════════════════
 // LOGIN
-// ═══════════════════════════════════════════════════  },150);
-}
-
-let _fichaProyectoNombre='';
-function abrirPagoDesdeficha(){
-  om('pago');
-  setTimeout(()=>{
-    const sel=$('pago-proyecto');
-    if(sel&&_fichaProyectoNombre){for(let o of sel.options){if(o.value===_fichaProyectoNombre){sel.value=_fichaProyectoNombre;sugerirCuota();break;}}}
-  },150);
-}
+// ═══════════════════════════════════════════════════
 async function login(nombre,ini,rol){
   USUARIO = nombre;
   $$('LW').style.display='none';
@@ -1038,8 +1028,6 @@ async function VF(id){
     return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
-  _fichaProyectoNombre=p.n;
-  _fichaProyectoNombre=p.n;
   // Activar la sección de proyectos si no está activa
   const navProy = document.querySelector('[data-page=proyectos]');
   if(navProy) nav(navProy);
@@ -1069,7 +1057,7 @@ async function VF(id){
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="abrirPagoDesdeficha()">+ Cargar pago</button></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" onclick="om('pago');setTimeout(()=>{const sel=$$('pago-proyecto');if(sel){for(let o of sel.options){if(o.value===p.n){sel.value=p.n;sugerirCuota();break;}}},100)">+ Cargar pago</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
@@ -1236,15 +1224,6 @@ function recalcUSD(){
   }
 }
 
-
-function abrirPagoDesdeficha(){
-  om('pago');
-  setTimeout(()=>{
-    const titulo=document.querySelector('#PF .pt')?.textContent;
-    const sel=$('pago-proyecto');
-    if(sel&&titulo){for(let o of sel.options){if(o.value===titulo){sel.value=titulo;sugerirCuota();break;}}}
-  },150);
-}
 // ── SUGERENCIA DE CUOTA ──────────────────────────────────────────
 let _cuotaSugerida = null;
 
