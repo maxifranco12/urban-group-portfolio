@@ -598,6 +598,15 @@ function fmtFecha(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('es-
 // ═══════════════════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════════════════
+
+let _fichaProyectoNombre='';
+function abrirPagoDesdeficha(){
+  om('pago');
+  setTimeout(()=>{
+    const sel=$('pago-proyecto');
+    if(sel&&_fichaProyectoNombre){for(let o of sel.options){if(o.value===_fichaProyectoNombre){sel.value=_fichaProyectoNombre;sugerirCuota();break;}}}
+  },150);
+}
 async function login(nombre,ini,rol){
   USUARIO = nombre;
   $$('LW').style.display='none';
@@ -1028,6 +1037,7 @@ async function VF(id){
     return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
+  _fichaProyectoNombre=p.n;
   // Activar la sección de proyectos si no está activa
   const navProy = document.querySelector('[data-page=proyectos]');
   if(navProy) nav(navProy);
