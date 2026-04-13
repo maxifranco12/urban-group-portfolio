@@ -414,6 +414,13 @@ tr:hover td{background:var(--s2);}
   <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Otro</option></select></div>
   <div class="frow"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div></div>
   <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
+  <div class="fg"><label class="fl">Inversor / Aportante</label>
+    <select class="fi" id="g-inversor">
+      <option value="Urban Group">Urban Group</option>
+      <option value="Tomi Slauscius">Tomi Slauscius</option>
+      <option value="Maxi Franco">Maxi Franco</option>
+    </select>
+  </div>
   <div class="info-box info-red" style="margin-bottom:0;">Al guardar, el monto se descontará del saldo de la Caja USD.</div>
   <div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" onclick="guardarGasto()">Registrar gasto</button></div>
 </div></div>
@@ -889,7 +896,8 @@ async function guardarGasto(){
     descripcion:$$('g-desc').value,
     monto_usd:monto,
     pagado:true,
-    sale_de_caja:true
+    sale_de_caja:true,
+    inversor:$('g-inversor')?.value||'Urban Group'
   });
   if(error){toast('Error: '+error.message,'err');return;}
   // Registrar egreso en caja
@@ -1072,6 +1080,7 @@ async function VF(id){
         <div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono" style="color:var(--green);">${cuotasPagadas}${p.tc?' / '+p.tc:''}</span></div>
         ${p.tc?`<div class="fr2"><span class="fk">Progreso</span><span class="fv"><div class="pb" style="width:120px;display:inline-block;vertical-align:middle;margin-right:6px;"><div class="pf" style="width:${pct2}%;background:var(--blue);"></div></div>${pct2}%</span></div>`:''}
         ${totalUSD>0?`<div class="fr2"><span class="fk">Total pagado</span><span class="fv mono">${fmtUSD(totalUSD)}</span></div>`:''}
+        ${gastosProyecto.length>0?`<div class="fr2" style="margin-top:8px;"><span class="fk" style="color:var(--red);">Gastos incurridos</span><span class="fv mono" style="color:var(--red);">- ${fmtUSD(gastosProyecto.reduce((s,g)=>s+Number(g.monto_usd||0),0))}</span></div>${gastosProyecto.map(g=>`<div class="fr2" style="font-size:11px;padding:3px 0;"><span class="fk" style="color:var(--muted);">${g.tipo}${g.inversor?' · '+g.inversor:''}</span><span class="fv" style="color:var(--red);">- ${fmtUSD(g.monto_usd)}${g.descripcion?' · '+g.descripcion:''}</span></div>`).join('')}`:''}
         ${ultimaCuota?`<div class="fr2"><span class="fk">Última cuota</span><span class="fv mono">N°${ultimaCuota.nro_cuota} · ${fmtFecha(ultimaCuota.fecha)} · ${fmtUSD(ultimaCuota.monto_usd)}</span></div>`:''}
         `:''}
       </div>
