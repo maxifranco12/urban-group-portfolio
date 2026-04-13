@@ -413,8 +413,20 @@ tr:hover td{background:var(--s2);}
   <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="g-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
   <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Honorarios</option><option>Otro</option></select></div>
   <div class="fg"><label class="fl">Moneda</label><select class="fi" id="g-moneda" onchange="toggleGastoMoneda()"><option value="USD">USD (Dólares)</option><option value="ARS">ARS (Pesos)</option></select></div>
-  <div class="frow" id="g-usd-row"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto" step="0.01"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div></div>
-  <div id="g-ars-row" style="display:none;"><div class="frow"><div class="fg"><label class="fl">Monto ARS</label><input class="fi" type="number" id="g-monto-ars" oninput="calcGastoUSD()"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha-ars"></div></div><div class="frow"><div class="fg"><label class="fl">Cotización ($/USD)</label><input class="fi" type="number" id="g-cotizacion" placeholder="1420" oninput="calcGastoUSD()"></div><div class="fg"><label class="fl">= USD</label><input class="fi" type="number" id="g-monto-usd-calc" readonly style="background:var(--s2);color:var(--muted);"></div></div></div>
+  <div class="frow" id="g-usd-row">
+    <div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto" step="0.01"></div>
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div>
+  </div>
+  <div id="g-ars-row" style="display:none;">
+    <div class="frow">
+      <div class="fg"><label class="fl">Monto ARS</label><input class="fi" type="number" id="g-monto-ars" oninput="calcGastoUSD()"></div>
+      <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha-ars"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Cotización ($/USD)</label><input class="fi" type="number" id="g-cotizacion" placeholder="1420" oninput="calcGastoUSD()"></div>
+      <div class="fg"><label class="fl">= USD estimado</label><input class="fi" type="number" id="g-monto-usd-calc" readonly style="background:var(--s2);color:var(--muted);"></div>
+    </div>
+  </div>
   <div class="fg"><label class="fl">Origen de fondos</label><select class="fi" id="g-origen"><option value="Caja USD Propia">Caja USD Propia (descuenta de caja)</option><option value="Fondos Externos">Fondos Externos / Afuera (no impacta caja)</option></select></div>
   <div class="fg"><label class="fl">Inversor / Aportante</label><select class="fi" id="g-inversor"><option value="Urban Group">Urban Group</option><option value="Tomi Slauscius">Tomi Slauscius</option><option value="Maxi Franco">Maxi Franco</option></select></div>
   <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
@@ -883,11 +895,37 @@ async function guardarPago(){
 }
 
 
-function toggleGastoMoneda(){const m=$('g-moneda').value;$('g-usd-row')&&($('g-usd-row').style.display=m==='USD'?'':'none');$('g-ars-row')&&($('g-ars-row').style.display=m==='ARS'?'':'none');}
-function calcGastoUSD(){const a=parseFloat($('g-monto-ars')?.value)||0,c=parseFloat($('g-cotizacion')?.value)||0;if(a&&c&&$('g-monto-usd-calc'))$('g-monto-usd-calc').value=(a/c).toFixed(2);}
-async function cargarUltimaCotizacion(){const {data}=await sb.from('pagos_cuotas').select('cotizacion').not('cotizacion','is',null).order('created_at',{ascending:false}).limit(1);if(data&&data[0]?.cotizacion&&$('g-cotizacion'))$('g-cotizacion').value=data[0].cotizacion;}
-async function editarGasto(d){const m=prompt('Nuevo monto USD:',d.monto);if(!m)return;const desc=prompt('Descripción:',d.desc||'');const {error}=await sb.from('gastos').update({monto_usd:parseFloat(m),descripcion:desc}).eq('id',d.id);if(error){toast('Error: '+error.message,'err');return;}toast('Gasto actualizado ✓','ok2');cargarGastos();}
-async function borrarGasto(d){if(!confirm('¿Borrar gasto de '+fmtUSD(parseFloat(d.monto))+'?'))return;const {error}=await sb.from('gastos').delete().eq('id',d.id);if(error){toast('Error','err');return;}if(d.sal==='true'){await sb.from('caja_movimientos').insert({fecha:new Date().toISOString().split('T')[0],concepto:'Reversa gasto',tipo:'ingreso',monto:parseFloat(d.monto),proyecto:d.proyecto,confirmado_por:USUARIO});cargarSaldo();}document.getElementById('gasto-row-'+d.id)?.remove();toast('Gasto eliminado ✓','ok2');}
+function toggleGastoMoneda(){
+  const m=$('g-moneda').value;
+  $('g-usd-row')&&($('g-usd-row').style.display=m==='USD'?'':'none');
+  $('g-ars-row')&&($('g-ars-row').style.display=m==='ARS'?'':'none');
+}
+function calcGastoUSD(){
+  const a=parseFloat($('g-monto-ars')?.value)||0,c=parseFloat($('g-cotizacion')?.value)||0;
+  if(a&&c&&$('g-monto-usd-calc'))$('g-monto-usd-calc').value=(a/c).toFixed(2);
+}
+async function cargarUltimaCotizacion(){
+  const {data}=await sb.from('pagos_cuotas').select('cotizacion').not('cotizacion','is',null).order('created_at',{ascending:false}).limit(1);
+  if(data&&data[0]?.cotizacion&&$('g-cotizacion'))$('g-cotizacion').value=data[0].cotizacion;
+}
+async function editarGasto(d){
+  const m=prompt('Nuevo monto USD:',d.monto);if(!m)return;
+  const desc=prompt('Descripción:',d.desc||'');
+  const {error}=await sb.from('gastos').update({monto_usd:parseFloat(m),descripcion:desc}).eq('id',d.id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Gasto actualizado ✓','ok2');cargarGastos();
+}
+async function borrarGasto(d){
+  if(!confirm('¿Borrar gasto de '+fmtUSD(parseFloat(d.monto))+'?'))return;
+  const {error}=await sb.from('gastos').delete().eq('id',d.id);
+  if(error){toast('Error','err');return;}
+  if(d.sal==='true'){
+    await sb.from('caja_movimientos').insert({fecha:new Date().toISOString().split('T')[0],concepto:'Reversa gasto — '+d.proyecto,tipo:'ingreso',monto:parseFloat(d.monto),proyecto:d.proyecto,confirmado_por:USUARIO});
+    cargarSaldo();
+  }
+  document.getElementById('gasto-row-'+d.id)?.remove();
+  toast('Gasto eliminado ✓','ok2');
+}
 async function guardarGasto(){
   const monto=Number($$('g-monto').value);
   if(!monto){toast('Ingresá el monto','err');return;}
@@ -1204,7 +1242,7 @@ async function generarReporte(){
 // MODALES Y UTILS
 // ═══════════════════════════════════════════════════
 const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso'};
-function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){const h=new Date().toISOString().split('T')[0];$('g-fecha')&&($('g-fecha').value=h);$('g-fecha-ars')&&($('g-fecha-ars').value=h);toggleGastoMoneda();cargarUltimaCotizacion();}}
+function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){const hoy=new Date().toISOString().split('T')[0];$('g-fecha')&&($('g-fecha').value=hoy);$('g-fecha-ars')&&($('g-fecha-ars').value=hoy);toggleGastoMoneda();cargarUltimaCotizacion();}}
 function cm(id){$$(id).classList.remove('open');}
 document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
@@ -1496,11 +1534,37 @@ async function guardarPago(){
 }
 
 
-function toggleGastoMoneda(){const m=$('g-moneda').value;$('g-usd-row')&&($('g-usd-row').style.display=m==='USD'?'':'none');$('g-ars-row')&&($('g-ars-row').style.display=m==='ARS'?'':'none');}
-function calcGastoUSD(){const a=parseFloat($('g-monto-ars')?.value)||0,c=parseFloat($('g-cotizacion')?.value)||0;if(a&&c&&$('g-monto-usd-calc'))$('g-monto-usd-calc').value=(a/c).toFixed(2);}
-async function cargarUltimaCotizacion(){const {data}=await sb.from('pagos_cuotas').select('cotizacion').not('cotizacion','is',null).order('created_at',{ascending:false}).limit(1);if(data&&data[0]?.cotizacion&&$('g-cotizacion'))$('g-cotizacion').value=data[0].cotizacion;}
-async function editarGasto(d){const m=prompt('Nuevo monto USD:',d.monto);if(!m)return;const desc=prompt('Descripción:',d.desc||'');const {error}=await sb.from('gastos').update({monto_usd:parseFloat(m),descripcion:desc}).eq('id',d.id);if(error){toast('Error: '+error.message,'err');return;}toast('Gasto actualizado ✓','ok2');cargarGastos();}
-async function borrarGasto(d){if(!confirm('¿Borrar gasto de '+fmtUSD(parseFloat(d.monto))+'?'))return;const {error}=await sb.from('gastos').delete().eq('id',d.id);if(error){toast('Error','err');return;}if(d.sal==='true'){await sb.from('caja_movimientos').insert({fecha:new Date().toISOString().split('T')[0],concepto:'Reversa gasto',tipo:'ingreso',monto:parseFloat(d.monto),proyecto:d.proyecto,confirmado_por:USUARIO});cargarSaldo();}document.getElementById('gasto-row-'+d.id)?.remove();toast('Gasto eliminado ✓','ok2');}
+function toggleGastoMoneda(){
+  const m=$('g-moneda').value;
+  $('g-usd-row')&&($('g-usd-row').style.display=m==='USD'?'':'none');
+  $('g-ars-row')&&($('g-ars-row').style.display=m==='ARS'?'':'none');
+}
+function calcGastoUSD(){
+  const a=parseFloat($('g-monto-ars')?.value)||0,c=parseFloat($('g-cotizacion')?.value)||0;
+  if(a&&c&&$('g-monto-usd-calc'))$('g-monto-usd-calc').value=(a/c).toFixed(2);
+}
+async function cargarUltimaCotizacion(){
+  const {data}=await sb.from('pagos_cuotas').select('cotizacion').not('cotizacion','is',null).order('created_at',{ascending:false}).limit(1);
+  if(data&&data[0]?.cotizacion&&$('g-cotizacion'))$('g-cotizacion').value=data[0].cotizacion;
+}
+async function editarGasto(d){
+  const m=prompt('Nuevo monto USD:',d.monto);if(!m)return;
+  const desc=prompt('Descripción:',d.desc||'');
+  const {error}=await sb.from('gastos').update({monto_usd:parseFloat(m),descripcion:desc}).eq('id',d.id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Gasto actualizado ✓','ok2');cargarGastos();
+}
+async function borrarGasto(d){
+  if(!confirm('¿Borrar gasto de '+fmtUSD(parseFloat(d.monto))+'?'))return;
+  const {error}=await sb.from('gastos').delete().eq('id',d.id);
+  if(error){toast('Error','err');return;}
+  if(d.sal==='true'){
+    await sb.from('caja_movimientos').insert({fecha:new Date().toISOString().split('T')[0],concepto:'Reversa gasto — '+d.proyecto,tipo:'ingreso',monto:parseFloat(d.monto),proyecto:d.proyecto,confirmado_por:USUARIO});
+    cargarSaldo();
+  }
+  document.getElementById('gasto-row-'+d.id)?.remove();
+  toast('Gasto eliminado ✓','ok2');
+}
 async function guardarGasto(){
   const monto=Number($$('g-monto').value);
   if(!monto){toast('Ingresá el monto','err');return;}
@@ -1817,7 +1881,7 @@ async function generarReporte(){
 // MODALES Y UTILS
 // ═══════════════════════════════════════════════════
 const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso'};
-function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){const h=new Date().toISOString().split('T')[0];$('g-fecha')&&($('g-fecha').value=h);$('g-fecha-ars')&&($('g-fecha-ars').value=h);toggleGastoMoneda();cargarUltimaCotizacion();}}
+function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){const hoy=new Date().toISOString().split('T')[0];$('g-fecha')&&($('g-fecha').value=hoy);$('g-fecha-ars')&&($('g-fecha-ars').value=hoy);toggleGastoMoneda();cargarUltimaCotizacion();}}
 function cm(id){$$(id).classList.remove('open');}
 document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
