@@ -410,18 +410,33 @@ tr:hover td{background:var(--s2);}
 <!-- MODAL GASTO -->
 <div class="ov" id="m-gasto"><div class="modal">
   <div class="mt2">Registrar gasto</div>
-  <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="g-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
-  <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Otro</option></select></div>
-  <div class="frow"><div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto"></div><div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div></div>
-  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
-  <div class="fg"><label class="fl">Inversor / Aportante</label>
-    <select class="fi" id="g-inversor">
-      <option value="Urban Group">Urban Group</option>
-      <option value="Tomi Slauscius">Tomi Slauscius</option>
-      <option value="Maxi Franco">Maxi Franco</option>
+  <div class="frow">
+    <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="g-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
+    <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Otro</option></select></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Moneda</label><select class="fi" id="g-moneda" onchange="gMonedaChange()"><option value="USD">USD (Dólares)</option><option value="ARS">ARS (Pesos)</option></select></div>
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="g-fecha"></div>
+  </div>
+  <div id="g-usd-row" class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="g-monto-usd" placeholder="0" step="0.01"></div>
+  <div id="g-ars-row" style="display:none;">
+    <div class="frow">
+      <div class="fg"><label class="fl">Monto ARS</label><input class="fi" type="number" id="g-monto-ars" placeholder="0" oninput="gCalcUSD()"></div>
+      <div class="fg"><label class="fl">Cotización ($/USD)</label><input class="fi" type="number" id="g-cotizacion" placeholder="1.420" oninput="gCalcUSD()"></div>
+    </div>
+    <div id="g-usd-calc" style="display:none;padding:8px 12px;background:var(--green-lt);border:1px solid var(--green-bg);border-radius:var(--r);font-size:12px;color:var(--green);margin-bottom:10px;">Equivale a <strong id="g-usd-calc-val"></strong></div>
+  </div>
+  <div class="fg"><label class="fl">Origen de fondos</label>
+    <select class="fi" id="g-origen" onchange="gOrigenChange()">
+      <option value="Caja USD Propia">Caja USD Propia (descuenta de caja)</option>
+      <option value="Fondos Externos">Fondos Externos / Afuera (no descuenta de caja)</option>
     </select>
   </div>
-  <div class="info-box info-red" style="margin-bottom:0;">Al guardar, el monto se descontará del saldo de la Caja USD.</div>
+  <div class="fg"><label class="fl">Inversor / Aportante</label>
+    <select class="fi" id="g-inversor"><option value="Urban Group">Urban Group</option><option value="Tomi Slauscius">Tomi Slauscius</option><option value="Maxi Franco">Maxi Franco</option></select>
+  </div>
+  <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
+  <div id="g-aviso" class="info-box info-red" style="margin-bottom:0;">Al guardar, el monto se descontará del saldo de la Caja USD.</div>
   <div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" onclick="guardarGasto()">Registrar gasto</button></div>
 </div></div>
 
@@ -731,7 +746,7 @@ async function cargarGastos(){
   $$('g-total').textContent=fmtUSD(total);
   $$('g-ultimo').textContent=data[0].tipo;
   $$('g-ultimo-sub').textContent=fmtFecha(data[0].fecha)+' · '+fmtUSD(data[0].monto_usd);
-  $$('GASTOS').innerHTML=`<table><thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Descripción</th><th>USD</th></tr></thead><tbody>${
+  $$('GASTOS').innerHTML=`<table><thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th>Info</th></tr></thead><tbody>${
     data.map(g=>`<tr><td>${fmtFecha(g.fecha)}</td><td>${g.proyecto}</td><td><span class="badge br">${g.tipo}</span></td><td>${g.descripcion||'—'}</td><td class="mono sal">−${fmtUSD(g.monto_usd)}</td></tr>`).join('')
   }</tbody></table>`;
 }
@@ -886,32 +901,47 @@ async function guardarPago(){
   actualizarContadoresCuotas().catch(()=>{});
 }
 
+
+let _lastCotizacion=1420;
+function gMonedaChange(){const esARS=$('g-moneda').value==='ARS';$('g-ars-row').style.display=esARS?'block':'none';$('g-usd-row').style.display=esARS?'none':'block';if(esARS&&!$('g-cotizacion').value)$('g-cotizacion').value=_lastCotizacion;gOrigenChange();}
+function gCalcUSD(){const ars=parseFloat($('g-monto-ars').value)||0,cot=parseFloat($('g-cotizacion').value)||0;if(ars>0&&cot>0){$('g-usd-calc').style.display='block';$('g-usd-calc-val').textContent='U$D '+( ars/cot).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});_lastCotizacion=cot;}else $('g-usd-calc').style.display='none';}
+function gOrigenChange(){const esCaja=$('g-origen')?.value==='Caja USD Propia';const av=$('g-aviso');if(av)av.style.display=esCaja?'block':'none';}
 async function guardarGasto(){
-  const monto=Number($$('g-monto').value);
-  if(!monto){toast('Ingresá el monto','err');return;}
-  const {error} = await sb.from('gastos').insert({
-    fecha:$$('g-fecha').value,
-    proyecto:$$('g-proyecto').value,
-    tipo:$$('g-tipo').value,
-    descripcion:$$('g-desc').value,
-    monto_usd:monto,
-    pagado:true,
-    sale_de_caja:true,
-    inversor:$('g-inversor')?.value||'Urban Group'
+  const moneda=$$('g-moneda').value;
+  let monto_usd,monto_ars=null,cotizacion=null;
+  if(moneda==='ARS'){
+    monto_ars=parseFloat($$('g-monto-ars').value)||0;
+    cotizacion=parseFloat($$('g-cotizacion').value)||0;
+    if(!monto_ars){toast('Ingresá el monto en ARS','err');return;}
+    if(!cotizacion){toast('Ingresá la cotización','err');return;}
+    monto_usd=monto_ars/cotizacion;
+    _lastCotizacion=cotizacion;
+  } else {
+    monto_usd=parseFloat($$('g-monto-usd').value)||0;
+    if(!monto_usd){toast('Ingresá el monto','err');return;}
+  }
+  const origen=$$('g-origen').value;
+  const saleDeCaja=origen==='Caja USD Propia';
+  const {error}=await sb.from('gastos').insert({
+    fecha:$$('g-fecha').value,proyecto:$$('g-proyecto').value,
+    tipo:$$('g-tipo').value,descripcion:$$('g-desc').value,
+    monto_usd,monto_ars,cotizacion,moneda,origen_fondos:origen,
+    pagado:true,sale_de_caja:saleDeCaja,
+    inversor:$$('g-inversor')?.value||'Urban Group'
   });
   if(error){toast('Error: '+error.message,'err');return;}
-  // Registrar egreso en caja
-  await sb.from('caja_movimientos').insert({
-    fecha:$$('g-fecha').value,
-    concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
-    tipo:'egreso',
-    monto:-monto,
-    proyecto:$$('g-proyecto').value,
-    confirmado_por:USUARIO
-  });
+  if(saleDeCaja){
+    await sb.from('caja_movimientos').insert({
+      fecha:$$('g-fecha').value,
+      concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
+      tipo:'egreso',monto:-monto_usd,proyecto:$$('g-proyecto').value,confirmado_por:USUARIO
+    });
+  }
+  // Limpiar campos
+  $$('g-monto-usd').value='';$$('g-monto-ars').value='';$$('g-monto').value='';
   cm('m-gasto');
-  toast('Gasto registrado y descontado de caja ✓','ok2');
-  cargarSaldo();
+  toast(saleDeCaja?'Gasto registrado y descontado de caja ✓':'Gasto registrado (fondos externos) ✓','ok2');
+  if(saleDeCaja) cargarSaldo();
   if($$('p-gastos').classList.contains('active'))cargarGastos();
 }
 
