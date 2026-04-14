@@ -230,7 +230,7 @@ tr:hover td{background:var(--s2);}
     <div><div class="pt">Dashboard</div><div class="ps" id="dash-sub">Cargando datos…</div></div>
     <div class="gap">
       <button class="btn" onclick="om('compra')">+ Nueva compra</button>
-      <button class="btn btnp" onclick="om('pago')">+ Cargar pago</button>
+      <button class="btn btnp" onclick="abrirPagoDesdeficha()">+ Cargar pago</button>
     </div>
   </div>
   <div class="mg g5">
@@ -601,6 +601,14 @@ function fmtFecha(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('es-
 // ═══════════════════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════════════════
+var _fichaProyectoNombre="";
+function abrirPagoDesdeficha(){
+om("pago");
+setTimeout(function(){
+var sel=$("pago-proyecto");
+if(sel&&_fichaProyectoNombre){for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===_fichaProyectoNombre){sel.value=_fichaProyectoNombre;sugerirCuota();break;}}}
+},150);
+}
 async function login(nombre,ini,rol){
   USUARIO = nombre;
   $$('LW').style.display='none';
@@ -728,7 +736,7 @@ async function cargarGastos(){
   $$('g-ultimo').textContent=data[0].tipo;
   $$('g-ultimo-sub').textContent=fmtFecha(data[0].fecha)+' · '+fmtUSD(data[0].monto_usd);
   $$('GASTOS').innerHTML=`<table><thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Descripción</th><th>Moneda</th><th>Origen</th><th>Inversor</th><th>USD</th><th></th></tr></thead><tbody>${
-    data.map(g=>`<tr><td>${fmtFecha(g.fecha)}</td><td>${g.proyecto}</td><td><span class="badge br">${g.tipo}</span></td><td>${g.descripcion||'—'}</td><td class="mono sal">−${fmtUSD(g.monto_usd)}</td></tr>`).join('')
+    data.map(function(g){return '<tr id="gasto-row-'+g.id+'"><td>'+fmtFecha(g.fecha)+'</td><td>'+g.proyecto+'</td><td><span class="badge br">'+g.tipo+'</span></td><td style="font-size:12px;">'+(g.descripcion||'—')+'</td><td><span class="badge '+(g.moneda==='ARS'?'ba':'bb')+'" style="font-size:9px;">'+(g.moneda||'USD')+(g.monto_ars?' · $'+Number(g.monto_ars).toLocaleString('es-AR'):'')+(g.cotizacion?' @'+g.cotizacion:'')+'</span></td><td><span class="badge '+(g.origen_fondos==='Fondos Externos'?'bgr':'bg')+'" style="font-size:9px;">'+(g.origen_fondos==='Fondos Externos'?'Externo':'Caja USD')+'</span></td><td style="font-size:11px;color:var(--muted);">'+(g.inversor||'Urban Group')+'</td><td class="mono sal">⊖'+fmtUSD(g.monto_usd)+'</td><td style="white-space:nowrap;"><button class="btn btns" style="margin-right:4px;" data-id="'+g.id+'" data-monto="'+g.monto_usd+'" data-sal="'+g.sale_de_caja+'" data-proyecto="'+g.proyecto+'" data-desc="'+(g.descripcion||'')+'" onclick="editarGasto(this.dataset)">✏️</button><button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);" data-id="'+g.id+'" data-monto="'+g.monto_usd+'" data-sal="'+g.sale_de_caja+'" data-proyecto="'+g.proyecto+'" onclick="borrarGasto(this.dataset)">🗑</button></td></tr>';}).join('')
   }</tbody></table>`;
 }
 
@@ -1060,6 +1068,7 @@ async function VF(id){
     return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
+_fichaProyectoNombre=p.n;
   // Activar la sección de proyectos si no está activa
   const navProy = document.querySelector('[data-page=proyectos]');
   if(navProy) nav(navProy);
