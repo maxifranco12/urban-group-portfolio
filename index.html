@@ -1163,6 +1163,13 @@ _fichaProyectoNombre=p.n;
   // Actualizar contador en PR
   const proj = PR.find(x=>x.id===id);
   if(proj && cuotasPagadas!==null) proj.c = cuotasPagadas;
+  var _pnombre=p?p.n:"";
+  setTimeout(function(){
+    var _pf=document.getElementById("PF");
+    if(!_pf)return;
+    var _pb=Array.from(_pf.querySelectorAll("button")).find(function(b){return b.textContent.trim()==='+ Cargar pago';});
+    if(_pb){_pb.onclick=function(){_fichaProyectoNombre=_pnombre;om("pago");setTimeout(function(){var _s=document.getElementById("pago-proyecto");if(_s&&_pnombre){for(var j=0;j<_s.options.length;j++){if(_s.options[j].value===_pnombre){_s.value=_pnombre;sugerirCuota();break;}}}},150);};}
+  },400);
 }
 
 // ═══════════════════════════════════════════════════
