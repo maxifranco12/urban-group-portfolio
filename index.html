@@ -1075,7 +1075,15 @@ async function VF(id){
           <tr><td>Local 4</td><td>Cuenca 925</td><td><span class="badge bgr">Sin vender</span></td></tr>
         </tbody></table>
       </div>`;
-    return;
+    // Gastos de Cuenca
+  var _gcuenca=await sb.from("gastos").select("*").ilike("proyecto","%Cuenca%");
+  var _gdata=_gcuenca.data||[];
+  if(_gdata.length>0){
+    var _gtot=_gdata.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);
+    var _ghtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Gastos incurridos</div><span class="badge br" style="font-size:11px;">- '+fmtUSD(_gtot)+'</span></div>'+_gdata.map(function(g){return '<div class="fr2"><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);">- '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div>';}).join('')+"</div>";
+    document.getElementById("PF").innerHTML+=_ghtml;
+  }
+  return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
 _fichaProyectoNombre=p.n;
