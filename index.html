@@ -906,9 +906,19 @@ if(res.data&&res.data[0]&&res.data[0].cotizacion&&$("g-cotizacion"))$("g-cotizac
 async function editarGasto(d){
 var m=prompt("Nuevo monto USD:",d.monto);if(!m)return;
 var desc=prompt("Descripcion:",d.desc||"");
-var res=await sb.from("gastos").update({monto_usd:parseFloat(m),descripcion:desc}).eq("id",d.id);
+var montoNuevo=parseFloat(m);
+var montoViejo=parseFloat(d.monto);
+var res=await sb.from("gastos").update({monto_usd:montoNuevo,descripcion:desc}).eq("id",d.id);
 if(res.error){toast("Error: "+res.error.message,"err");return;}
-toast("Gasto actualizado","ok2");cargarGastos();
+// Si sale de caja, revertir viejo y crear nuevo movimiento
+if(d.sal==="true"||d.sal===true){
+  var dif=montoNuevo-montoViejo;
+  if(dif!==0){
+    await sb.from("caja_movimientos").insert({fecha:new Date().toISOString().split("T")[0],concepto:"Ajuste gasto — "+d.proyecto,tipo:dif>0?"egreso":"ingreso",monto:dif>0?-Math.abs(dif):Math.abs(dif),proyecto:d.proyecto,confirmado_por:USUARIO});
+    cargarSaldo();
+  }
+}
+toast("Gasto actualizado y caja ajustada","ok2");cargarGastos();
 }
 async function borrarGasto(d){
 if(!confirm("Borrar gasto de "+fmtUSD(parseFloat(d.monto))+"?"))return;
@@ -1079,6 +1089,7 @@ _fichaProyectoNombre=p.n;
   // Traer cuotas reales desde Supabase
   let cuotasPagadas = null;
   let ultimaCuota = null;
+  let gastosProyecto = [];
   let totalUSD = 0;
   if(p.tc || p.c !== null){
     const {data} = await sb.from('pagos_cuotas')
@@ -1091,6 +1102,10 @@ _fichaProyectoNombre=p.n;
       totalUSD = data.reduce((s,r)=>s+Number(r.monto_usd||0),0);
     } else {
       cuotasPagadas = 0;
+    // Cargar gastos del proyecto
+    var _kw=p.n.split(" — ")[0].split(" 2")[0].trim();
+    var _gr=await sb.from("gastos").select("*").ilike("proyecto","%"+_kw.substring(0,6)+"%");
+    gastosProyecto=_gr.data||[];
     }
   }
   const pct2 = p.tc && cuotasPagadas ? Math.round(cuotasPagadas/p.tc*100) : 0;
@@ -1109,6 +1124,7 @@ _fichaProyectoNombre=p.n;
       </div>
       <div class="fc"><div class="fl2">Inversión</div>
         <div class="fr2"><span class="fk">Total invertido</span><span class="fv mono" style="color:var(--blue);">${p.inv}</span></div>
+        ${(function(){var gp=gastosProyecto||[];if(!gp.length)return '';var tot=gp.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);return '<div class="fr2" style="margin-top:4px;"><span class="fk" style="color:var(--red);">Gastos incurridos</span><span class="fv mono" style="color:var(--red);">+ '+fmtUSD(tot)+'</span></div>'+gp.map(function(g){return '<div class="fr2" style="font-size:11px;padding:2px 0;"><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);">- '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div>';}).join('');})()}
         ${cuotasPagadas!==null?`
         <div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono" style="color:var(--green);">${cuotasPagadas}${p.tc?' / '+p.tc:''}</span></div>
         ${p.tc?`<div class="fr2"><span class="fk">Progreso</span><span class="fv"><div class="pb" style="width:120px;display:inline-block;vertical-align:middle;margin-right:6px;"><div class="pf" style="width:${pct2}%;background:var(--blue);"></div></div>${pct2}%</span></div>`:''}
