@@ -609,14 +609,15 @@ function abrirGastoDesdeficha(){
   setTimeout(function(){
     var sel=document.getElementById("g-proyecto");
     if(sel&&_fichaGastoProyecto){
+      var _matched=false;
       for(var i=0;i<sel.options.length;i++){
-        if(sel.options[i].text===_fichaGastoProyecto||sel.options[i].value===_fichaGastoProyecto){
-          sel.value=sel.options[i].value;break;
-        }
-        // Match parcial
-        if(_fichaGastoProyecto.includes(sel.options[i].value)||sel.options[i].value.includes(_fichaGastoProyecto.split(" ")[0])){
-          sel.value=sel.options[i].value;break;
-        }
+        var _ov=sel.options[i].value;
+        // Match exacto
+        if(_ov===_fichaGastoProyecto||_fichaGastoProyecto===_ov){sel.value=_ov;_matched=true;break;}
+        // El valor del option está contenido en el nombre del proyecto
+        if(_ov.length>3&&_fichaGastoProyecto.toLowerCase().includes(_ov.toLowerCase())){sel.value=_ov;_matched=true;break;}
+        // La primera palabra del proyecto coincide
+        if(_ov.split(" ")[0]===_fichaGastoProyecto.split(" ")[0]&&_ov.length>3){sel.value=_ov;_matched=true;break;}
       }
     }
     var hoy=new Date().toISOString().split("T")[0];
