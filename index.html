@@ -1225,7 +1225,18 @@ _fichaProyectoNombre=p.n;
     var _pf=document.getElementById("PF");
     if(!_pf)return;
     var _pb=Array.from(_pf.querySelectorAll("button")).find(function(b){return b.textContent.trim()==='+ Cargar pago';});
-    if(_pb){_pb.onclick=function(){_fichaProyectoNombre=_pnombre;om("pago");setTimeout(function(){var _s=document.getElementById("pago-proyecto");if(_s&&_pnombre){for(var j=0;j<_s.options.length;j++){if(_s.options[j].value===_pnombre){_s.value=_pnombre;sugerirCuota();break;}}}},150);};}
+    if(_pb){
+    _pb.onclick=function(){_fichaProyectoNombre=_pnombre;om("pago");setTimeout(function(){var _s=document.getElementById("pago-proyecto");if(_s&&_pnombre){for(var j=0;j<_s.options.length;j++){if(_s.options[j].value===_pnombre){_s.value=_pnombre;sugerirCuota();break;}}}},150);};
+    // Agregar botón + Gasto dinámicamente
+    if(!_pf.querySelector('._gasto-btn')){
+      var _gb=document.createElement('button');
+      _gb.className='btn btns _gasto-btn';
+      _gb.style.cssText='background:var(--red-bg);color:var(--red);border:1px solid var(--red);margin-left:6px;';
+      _gb.textContent='+ Gasto';
+      _gb.onclick=function(){_fichaGastoProyecto=_pnombre;abrirGastoDesdeficha();};
+      _pb.parentNode.appendChild(_gb);
+    }
+  }
   },400);
 }
 
