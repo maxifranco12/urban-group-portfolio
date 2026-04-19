@@ -231,6 +231,7 @@ tr:hover td{background:var(--s2);}
     <div class="gap">
       <button class="btn" onclick="om('compra')">+ Nueva compra</button>
       <button class="btn btnp" onclick="abrirPagoDesdeficha()">+ Cargar pago</button>
+        <button class="btn btns" onclick="abrirGastoDesdeficha()" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">+ Gasto</button>
     </div>
   </div>
   <div class="mg g5">
@@ -601,6 +602,30 @@ function fmtFecha(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('es-
 // ═══════════════════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════════════════
+
+var _fichaGastoProyecto="";
+function abrirGastoDesdeficha(){
+  om("gasto");
+  setTimeout(function(){
+    var sel=document.getElementById("g-proyecto");
+    if(sel&&_fichaGastoProyecto){
+      for(var i=0;i<sel.options.length;i++){
+        if(sel.options[i].text===_fichaGastoProyecto||sel.options[i].value===_fichaGastoProyecto){
+          sel.value=sel.options[i].value;break;
+        }
+        // Match parcial
+        if(_fichaGastoProyecto.includes(sel.options[i].value)||sel.options[i].value.includes(_fichaGastoProyecto.split(" ")[0])){
+          sel.value=sel.options[i].value;break;
+        }
+      }
+    }
+    var hoy=new Date().toISOString().split("T")[0];
+    if(document.getElementById("g-fecha"))document.getElementById("g-fecha").value=hoy;
+    if(document.getElementById("g-fecha-ars"))document.getElementById("g-fecha-ars").value=hoy;
+    if(typeof toggleGastoMoneda==="function")toggleGastoMoneda();
+    if(typeof cargarUltimaCotizacion==="function")cargarUltimaCotizacion();
+  },150);
+}
 var _fichaProyectoNombre="";
 function abrirPagoDesdeficha(){
 om("pago");
@@ -1042,6 +1067,7 @@ async function VF(id){
       <div class="ph">
         <div><div class="pt">Cuenca Obra</div><div class="ps">4 locales en 2 lotes · Urban Group + Tomi Slauscius</div></div>
         <span class="badge bg" style="font-size:12px;padding:5px 12px;">Local 2 vendido</span>
+        <button class="btn btns" onclick="_fichaGastoProyecto='Cuenca Obra';abrirGastoDesdeficha();" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">+ Gasto</button>
       </div>
       <div class="g2f">
         <div class="fc"><div class="fl2">Inversión total</div>
@@ -1089,6 +1115,7 @@ async function VF(id){
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
 _fichaProyectoNombre=p.n;
+  _fichaGastoProyecto=p.n;
   // Activar la sección de proyectos si no está activa
   const navProy = document.querySelector('[data-page=proyectos]');
   if(navProy) nav(navProy);
