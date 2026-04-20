@@ -938,10 +938,6 @@ if(resG.error){toast("Error: "+resG.error.message,"err");return;}
 if(d.sal==="true"||d.sal===true){
   // Actualizar el movimiento vinculado (relacion 1 a 1)
   var resCaja=await sb.from("caja_movimientos").update({monto:-montoNuevo,concepto:d.tipo+" — "+d.proyecto+(desc?" ("+desc+")":"")}).eq("gasto_id",d.id);
-  if(!resCaja.data||resCaja.data.length===0){
-    // Si no hay movimiento vinculado, crear uno nuevo
-    await sb.from("caja_movimientos").insert({fecha:new Date().toISOString().split("T")[0],concepto:d.tipo+" — "+d.proyecto+(desc?" ("+desc+")":""),tipo:"egreso",monto:-montoNuevo,proyecto:d.proyecto,confirmado_por:USUARIO,gasto_id:d.id});
-  }
   cargarSaldo();
 }
 toast("Gasto actualizado ✓","ok2");cargarGastos();
@@ -971,11 +967,11 @@ async function guardarGasto(){
   // Registrar egreso en caja
   var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
   await sb.from('caja_movimientos').insert({
-    fecha:$('g-fecha').value,
-    concepto:$('g-tipo').value+' — '+$('g-proyecto').value+($('g-desc').value?' ('+$('g-desc').value+')':''),
+    fecha:$$('g-fecha').value,
+    concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
     tipo:'egreso',
     monto:-monto,
-    proyecto:$('g-proyecto').value,
+    proyecto:$$('g-proyecto').value,
     confirmado_por:USUARIO,
     gasto_id:_gId
   });
