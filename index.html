@@ -419,7 +419,7 @@ tr:hover td{background:var(--s2);}
 <div class="fg"><label class="fl">Origen de fondos</label><select class="fi" id="g-origen"><option value="Caja USD Propia">Caja USD Propia (descuenta de caja)</option><option value="Fondos Externos">Fondos Externos / Afuera (no impacta caja)</option></select></div>
 <div class="fg"><label class="fl">Inversor / Aportante</label><select class="fi" id="g-inversor"><option value="Urban Group">Urban Group</option><option value="Tomi Slauscius">Tomi Slauscius</option><option value="Maxi Franco">Maxi Franco</option></select></div>
 <div class="fg"><label class="fl">Descripción</label><input class="fi" type="text" id="g-desc"></div>
-<div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" onclick="guardarGasto()">Registrar gasto</button></div>
+<div class="ma"><button class="btn" onclick="cm('m-gasto')">Cancelar</button><button class="btn btnr" id="btn-guardar-gasto" onclick="guardarGasto()">Registrar gasto</button></div>
 </div></div>
 
 <!-- MODAL INGRESO/EGRESO MANUAL -->
@@ -952,33 +952,59 @@ if(row)row.remove();
 toast("Gasto eliminado","ok2");
 }
 async function guardarGasto(){
-  const monto=Number($$('g-monto').value);
+  const btn=$$('btn-guardar-gasto');
+  if(btn.disabled)return;
+  btn.disabled=true;btn.textContent='Guardando…';
+  try{
+  const moneda=$$('g-moneda').value;
+  let monto=0, monto_ars=null, cotizacion=null;
+  if(moneda==='ARS'){
+    monto_ars=parseFloat($$('g-monto-ars').value)||0;
+    cotizacion=parseFloat($$('g-cotizacion').value)||0;
+    monto=cotizacion?(monto_ars/cotizacion):parseFloat($$('g-monto-usd-calc').value)||0;
+    if(!monto_ars){toast('Ingresá el monto ARS','err');return;}
+  } else {
+    monto=Number($$('g-monto').value);
+  }
   if(!monto){toast('Ingresá el monto','err');return;}
+  const fecha=moneda==='ARS'?$$('g-fecha-ars').value:$$('g-fecha').value;
+  const origenFondos=$$('g-origen').value;
+  const saleDeCaja=origenFondos!=='Fondos Externos';
+  const inversor=$$('g-inversor').value;
   const {data:_gInsData, error} = await sb.from('gastos').insert({
-    fecha:$$('g-fecha').value,
+    fecha:fecha,
     proyecto:$$('g-proyecto').value,
     tipo:$$('g-tipo').value,
     descripcion:$$('g-desc').value,
-    monto_usd:monto,
+    monto_usd:Math.round(monto*100)/100,
+    monto_ars:monto_ars,
+    cotizacion:cotizacion,
+    moneda:moneda,
+    origen_fondos:origenFondos==='Fondos Externos'?'Fondos Externos':'Caja USD Propia',
+    inversor:inversor,
     pagado:true,
-    sale_de_caja:true
-  });
+    sale_de_caja:saleDeCaja
+  }).select();
   if(error){toast('Error: '+error.message,'err');return;}
-  // Registrar egreso en caja
-  var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
-  await sb.from('caja_movimientos').insert({
-    fecha:$$('g-fecha').value,
-    concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
-    tipo:'egreso',
-    monto:-monto,
-    proyecto:$$('g-proyecto').value,
-    confirmado_por:USUARIO,
-    gasto_id:_gId
-  });
+  // Solo registrar egreso en caja si sale de caja propia
+  if(saleDeCaja){
+    var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
+    await sb.from('caja_movimientos').insert({
+      fecha:fecha,
+      concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
+      tipo:'egreso',
+      monto:-monto,
+      proyecto:$$('g-proyecto').value,
+      confirmado_por:USUARIO,
+      gasto_id:_gId
+    });
+  }
   cm('m-gasto');
-  toast('Gasto registrado y descontado de caja ✓','ok2');
+  toast(saleDeCaja?'Gasto registrado y descontado de caja ✓':'Gasto registrado (fondos externos, no impacta caja) ✓','ok2');
   cargarSaldo();
   if($$('p-gastos').classList.contains('active'))cargarGastos();
+  }catch(e){toast('Error inesperado: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='Registrar gasto';}
 }
 
 async function guardarMovimiento(){
@@ -1136,16 +1162,16 @@ _fichaProyectoNombre=p.n;
       totalUSD = data.reduce((s,r)=>s+Number(r.monto_usd||0),0);
     } else {
       cuotasPagadas = 0;
-    // Cargar gastos del proyecto
-    var _kw=p.n.split(" — ")[0].trim();
-    var _gr=await sb.from("gastos").select("*").filter("proyecto","ilike","%"+_kw+"%");
-    if(!_gr.data||_gr.data.length===0){
-      var _kw2=_kw.split(" ")[0];
-      _gr=await sb.from("gastos").select("*").ilike("proyecto","%"+_kw2+"%");
-    }
-    gastosProyecto=_gr.data||[];
     }
   }
+  // Cargar gastos del proyecto (siempre)
+  var _kw=p.n.split(" — ")[0].trim();
+  var _gr=await sb.from("gastos").select("*").filter("proyecto","ilike","%"+_kw+"%");
+  if(!_gr.data||_gr.data.length===0){
+    var _kw2=_kw.split(" ")[0];
+    _gr=await sb.from("gastos").select("*").ilike("proyecto","%"+_kw2+"%");
+  }
+  gastosProyecto=_gr.data||[];
   const pct2 = p.tc && cuotasPagadas ? Math.round(cuotasPagadas/p.tc*100) : 0;
   $$('PF').innerHTML=`
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
