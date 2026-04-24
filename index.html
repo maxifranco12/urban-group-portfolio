@@ -254,6 +254,7 @@ tr:hover td{background:var(--s2);}
       <div><div class="pt">Proyectos</div><div class="ps">Portfolio completo</div></div>
       <div class="gap">
         <select class="btn" id="FS" onchange="rc()"><option value="">Todos los socios</option><option>Urban Group</option><option>Maxi solo</option><option>Tomi solo</option></select>
+        <button class="btn" onclick="om('contrato')">+ Contrato</button>
         <button class="btn btnp" onclick="om('compra')">+ Nueva compra</button>
       </div>
     </div>
@@ -450,6 +451,19 @@ tr:hover td{background:var(--s2);}
   <div class="fg"><label class="fl">Desarrollador</label><input class="fi" type="text" id="c-dev"></div>
   <div class="fg"><label class="fl">Entrega estimada</label><input class="fi" type="text" id="c-entrega" placeholder="Jun 2028"></div>
   <div class="ma"><button class="btn" onclick="cm('m-compra')">Cancelar</button><button class="btn btnp" onclick="toast('Proyecto guardado ✓','ok2');cm('m-compra')">Crear proyecto</button></div>
+</div></div>
+
+<!-- MODAL CONTRATO -->
+<div class="ov" id="m-contrato"><div class="modal">
+  <div class="mt2">Nuevo contrato adherido</div>
+  <div class="fg"><label class="fl">Proyecto vinculado</label><select class="fi" id="ctr-proyecto"><option>Cuenca Obra</option><option>Terrada 622-624 — UF2</option><option>Terrada 526 — Local 2</option><option>Giribone 2363</option><option>Parque Avellaneda</option></select></div>
+  <div class="fg"><label class="fl">Nombre del contrato / inquilino</label><input class="fi" type="text" id="ctr-nombre" placeholder="Ej: Erra, Fashion Collection"></div>
+  <div class="fg"><label class="fl">Tipo</label><select class="fi" id="ctr-tipo"><option>Alquiler</option><option>Venta en cuotas</option><option>Concesión</option><option>Comodato</option><option>Otro</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Monto mensual USD</label><input class="fi" type="number" id="ctr-monto" step="0.01"></div><div class="fg"><label class="fl">Cantidad de cuotas</label><input class="fi" type="number" id="ctr-cuotas" placeholder="Ej: 12, 36"></div></div>
+  <div class="frow"><div class="fg"><label class="fl">Fecha inicio</label><input class="fi" type="date" id="ctr-inicio"></div><div class="fg"><label class="fl">Fecha fin</label><input class="fi" type="date" id="ctr-fin"></div></div>
+  <div class="fg"><label class="fl">Monto total USD (opcional)</label><input class="fi" type="number" id="ctr-total" step="0.01"></div>
+  <div class="fg"><label class="fl">Notas</label><input class="fi" type="text" id="ctr-notas" placeholder="Detalles del contrato"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-contrato')">Cancelar</button><button class="btn btnp" id="btn-guardar-contrato" onclick="guardarContrato()">Crear contrato</button></div>
 </div></div>
 
 <script>
@@ -735,15 +749,16 @@ async function cargarCobros(){
 async function cargarMovimientos(){
   const {data,error} = await sb.from('caja_movimientos').select('*').order('fecha',{ascending:false}).limit(50);
   if(error||!data){$$('CAJAMOV').innerHTML='<div class="loading">Error al cargar</div>';return;}
-  $$('CAJAMOV').innerHTML=`<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Ingreso</th><th>Egreso</th></tr></thead><tbody>${
+  $$('CAJAMOV').innerHTML=`<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Ingreso</th><th>Egreso</th><th></th></tr></thead><tbody>${
     data.map(m=>{
       const esEg=Number(m.monto)<0;
       return `<tr class="mov-row" data-tipo="${esEg?'eg':'ing'}">
         <td>${fmtFecha(m.fecha)}</td>
-        <td>${m.concepto}</td>
+        <td>${m.concepto||'—'}</td>
         <td><span class="badge ${m.tipo==='aporte'?'bb':m.tipo==='pagare'?'bg':esEg?'br':'bg'}">${m.tipo}</span></td>
         <td class="mono ing">${!esEg?'+'+Number(m.monto).toLocaleString('es-AR'):''}</td>
         <td class="mono sal">${esEg?Number(m.monto).toLocaleString('es-AR'):''}</td>
+        <td style="white-space:nowrap;"><button class="btn btns" style="margin-right:4px;" onclick="editarMovCaja('${m.id}','${(m.concepto||'').replace(/'/g,"\\'")}',${m.monto},'${m.fecha||''}')">✏️</button><button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);" onclick="borrarMovCaja('${m.id}','${(m.concepto||'').replace(/'/g,"\\'")}',${m.monto})">🗑</button></td>
       </tr>`;
     }).join('')
   }</tbody></table>`;
@@ -1025,6 +1040,82 @@ async function guardarMovimiento(){
   if($$('p-caja').classList.contains('active'))cargarMovimientos();
 }
 
+async function editarMovCaja(id,concepto,monto,fecha){
+  var nMonto=prompt("Monto (positivo=ingreso, negativo=egreso):",monto);
+  if(nMonto===null)return;
+  var nConcepto=prompt("Descripción:",concepto);
+  if(nConcepto===null)return;
+  var nFecha=prompt("Fecha (YYYY-MM-DD):",fecha);
+  if(nFecha===null)return;
+  var montoNum=parseFloat(nMonto);
+  if(isNaN(montoNum)){toast('Monto inválido','err');return;}
+  var updateData={monto:montoNum,concepto:nConcepto};
+  if(nFecha)updateData.fecha=nFecha;
+  var {error}=await sb.from('caja_movimientos').update(updateData).eq('id',id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Movimiento actualizado ✓','ok2');
+  cargarSaldo();cargarMovimientos();
+}
+
+async function borrarMovCaja(id,concepto,monto){
+  if(!confirm('¿Borrar movimiento "'+concepto+'" ('+monto+')?'))return;
+  var {error}=await sb.from('caja_movimientos').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Movimiento eliminado ✓','ok2');
+  cargarSaldo();cargarMovimientos();
+}
+
+async function guardarContrato(){
+  var nombre=$$('ctr-nombre').value.trim();
+  if(!nombre){toast('Ingresá el nombre del contrato/inquilino','err');return;}
+  var btn=$$('btn-guardar-contrato');
+  btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    var {error}=await sb.from('contratos').insert({
+      proyecto:$$('ctr-proyecto').value,
+      nombre:nombre,
+      tipo:$$('ctr-tipo').value,
+      monto_mensual:parseFloat($$('ctr-monto').value)||null,
+      cuotas:parseInt($$('ctr-cuotas').value)||null,
+      fecha_inicio:$$('ctr-inicio').value||null,
+      fecha_fin:$$('ctr-fin').value||null,
+      monto_total:parseFloat($$('ctr-total').value)||null,
+      notas:$$('ctr-notas').value||null,
+      activo:true
+    });
+    if(error){toast('Error: '+error.message,'err');return;}
+    cm('m-contrato');
+    toast('Contrato "'+nombre+'" creado ✓','ok2');
+  }catch(e){toast('Error: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='Crear contrato';}
+}
+
+async function cargarContratos(proyecto){
+  var {data}=await sb.from('contratos').select('*').ilike('proyecto','%'+proyecto+'%').eq('activo',true);
+  return data||[];
+}
+
+async function borrarContrato(id,nombre){
+  if(!confirm('¿Eliminar contrato "'+nombre+'"?'))return;
+  var {error}=await sb.from('contratos').update({activo:false}).eq('id',id);
+  if(error){toast('Error: '+error.message,'err');return;}
+  toast('Contrato eliminado ✓','ok2');
+  // Recargar la ficha actual
+  if($$('PF').style.display==='block'){
+    var backBtn=$$('PF').querySelector('.back');
+    if(backBtn){
+      // Determinar qué ficha recargar buscando en el contenido
+      var fichaTitle=$$('PF').querySelector('.pt');
+      if(fichaTitle){
+        var title=fichaTitle.textContent;
+        var pr=PR.find(function(p){return p.n.includes(title)||title.includes(p.n.split(' — ')[0]);});
+        if(pr)VF(pr.id);
+        else if(title.includes('Cuenca'))VF('cuenca');
+      }
+    }
+  }
+}
+
 async function guardarAlarma(){
   const {error} = await sb.from('alarmas').insert({
     tipo:$$('al-tipo').value,
@@ -1133,6 +1224,24 @@ async function VF(id){
     var _gtot=_gdata.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);
     var _ghtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Gastos incurridos</div><span class="badge br" style="font-size:11px;">- '+fmtUSD(_gtot)+'</span></div>'+_gdata.map(function(g){return '<div class="fr2"><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);">- '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div>';}).join('')+"</div>";
     document.getElementById("PF").innerHTML+=_ghtml;
+  }
+  // Contratos adheridos a Cuenca
+  var _contratos=await cargarContratos("Cuenca");
+  if(_contratos.length>0){
+    var _chtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_contratos.length+' contrato'+ (_contratos.length>1?'s':'')+'</span></div>';
+    _chtml+=_contratos.map(function(c){
+      return '<div style="padding:12px 16px;border-bottom:1px solid var(--border);">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+        '<div><span style="font-weight:500;">'+c.nombre+'</span> <span class="badge bg" style="font-size:10px;">'+c.tipo+'</span></div>'+
+        '<div style="display:flex;gap:6px;"><button class="btn btns" onclick="borrarContrato(\''+c.id+'\',\''+c.nombre.replace(/'/g,"\\'")+'\')" style="background:var(--red-bg);color:var(--red);border-color:var(--red);font-size:10px;">Eliminar</button></div>'+
+        '</div>'+
+        (c.monto_mensual?'<div style="font-size:13px;margin-top:6px;" class="mono" >'+fmtUSD(c.monto_mensual)+'/mes'+(c.cuotas?' · '+c.cuotas+' cuotas':'')+'</div>':'')+
+        (c.monto_total?'<div style="font-size:12px;color:var(--muted);">Total: '+fmtUSD(c.monto_total)+'</div>':'')+
+        (c.fecha_inicio?'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+fmtFecha(c.fecha_inicio)+(c.fecha_fin?' → '+fmtFecha(c.fecha_fin):'')+'</div>':'')+
+        (c.notas?'<div style="font-size:11px;color:var(--hint);margin-top:2px;">'+c.notas+'</div>':'')+
+        '</div>';
+    }).join('')+'</div>';
+    document.getElementById("PF").innerHTML+=_chtml;
   }
   return;
   }
@@ -1243,6 +1352,24 @@ _fichaProyectoNombre=p.n;
   // Actualizar contador en PR
   const proj = PR.find(x=>x.id===id);
   if(proj && cuotasPagadas!==null) proj.c = cuotasPagadas;
+  // Cargar contratos adheridos al proyecto
+  var _ctrs=await cargarContratos(p.n.split(' — ')[0]);
+  if(_ctrs.length>0){
+    var _chtml2='<div class="card"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_ctrs.length+'</span></div>';
+    _chtml2+=_ctrs.map(function(c){
+      return '<div style="padding:12px 16px;border-bottom:1px solid var(--border);">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+        '<div><span style="font-weight:500;">'+c.nombre+'</span> <span class="badge bg" style="font-size:10px;">'+c.tipo+'</span></div>'+
+        '<button class="btn btns" onclick="borrarContrato(\''+c.id+'\',\''+c.nombre.replace(/'/g,"\\'")+'\')" style="background:var(--red-bg);color:var(--red);border-color:var(--red);font-size:10px;">Eliminar</button>'+
+        '</div>'+
+        (c.monto_mensual?'<div style="font-size:13px;margin-top:6px;" class="mono">'+fmtUSD(c.monto_mensual)+'/mes'+(c.cuotas?' · '+c.cuotas+' cuotas':'')+'</div>':'')+
+        (c.monto_total?'<div style="font-size:12px;color:var(--muted);">Total: '+fmtUSD(c.monto_total)+'</div>':'')+
+        (c.fecha_inicio?'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+fmtFecha(c.fecha_inicio)+(c.fecha_fin?' → '+fmtFecha(c.fecha_fin):'')+'</div>':'')+
+        (c.notas?'<div style="font-size:11px;color:var(--hint);margin-top:2px;">'+c.notas+'</div>':'')+
+        '</div>';
+    }).join('')+'</div>';
+    $$('PF').innerHTML+=_chtml2;
+  }
   var _pnombre=p?p.n:"";
   setTimeout(function(){
     var _pf=document.getElementById("PF");
