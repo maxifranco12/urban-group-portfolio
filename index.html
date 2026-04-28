@@ -1076,9 +1076,9 @@ async function borrarMovCaja(id,concepto,monto){
 async function actualizarRentaDashboard(){
   var totalMensual=0;
   var nombres=[];
-  // 1. Rentas fijas de proyectos (ej: Fashion Collection)
+  // 1. Rentas fijas de proyectos que son alquiler (ej: Fashion Collection)
   PR.forEach(function(p){
-    if(p.r){
+    if(p.r && p.e && (p.e.toLowerCase().includes('alquiler') || p.t.toLowerCase().includes('alquiler'))){
       var match=p.r.match(/[\d.,]+/);
       if(match){
         var val=parseFloat(match[0].replace(/\./g,'').replace(',','.'));
