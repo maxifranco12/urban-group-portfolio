@@ -1075,54 +1075,54 @@ async function borrarMovCaja(id,concepto,monto){
 }
 
 async function migrarFashionSiNoExiste(){
-  // Verificar si ya existe el contrato de Fashion Collection
-  var {data}=await sb.from('contratos').select('id').eq('nombre','Fashion Collection').eq('activo',true);
-  if(data&&data.length>0)return; // ya existe
-  // Crear contrato de Fashion Collection (Terrada UF2)
+  // Verificar si ya existe con datos correctos (12 cuotas, inicio 2026-03-15)
+  var {data}=await sb.from('contratos').select('*').eq('nombre','Fashion Collection').eq('activo',true);
+  if(data&&data.length>0){
+    var c=data[0];
+    // Si ya tiene los datos correctos, no hacer nada
+    if(c.fecha_inicio==='2026-03-15'&&c.a1_cuotas===12&&!c.a2_monto)return;
+    // Si tiene datos viejos (36 cuotas), borrar y recrear
+    await sb.from('cobros').delete().eq('contrato_id',c.id).eq('cobrado',false);
+    await sb.from('contratos').delete().eq('id',c.id);
+  }
+  // Crear contrato correcto: 12 meses desde 15/3/2026
   var fashionData={
     proyecto:'Terrada 622-624 — UF2',obra:'Terrada',local:'UF2',
     nombre:'Fashion Collection',tipo:'Alquiler',
-    fecha_inicio:'2024-01-01',fecha_fin:null,
+    fecha_inicio:'2026-03-15',fecha_fin:'2027-03-14',
     a1_monto:4300,a1_cuotas:12,
-    a2_monto:4300,a2_cuotas:12,
-    a3_monto:4300,a3_cuotas:12,
-    monto_total:4300*36,
-    notas:'Contrato de alquiler vigente — migrado automáticamente',
+    a2_monto:null,a2_cuotas:null,
+    a3_monto:null,a3_cuotas:null,
+    monto_total:4300*12,
+    notas:'Contrato de alquiler 12 meses — inicio 15/3/2026',
     activo:true
   };
   var {data:ins,error}=await sb.from('contratos').insert(fashionData).select();
   if(error){console.log('Error migrando Fashion:',error);return;}
-  // Generar cobros solo para cuotas futuras (desde hoy en adelante)
   var ctrId=ins[0].id;
+  // Marzo y abril 2026 ya cobrados, generar cuotas 1-12
   var cobros=[];
-  var fechaBase=new Date('2024-01-01T12:00:00');
-  var ahora=new Date();
-  var años=[{monto:4300,cuotas:12,label:'Año 1'},{monto:4300,cuotas:12,label:'Año 2'},{monto:4300,cuotas:12,label:'Año 3'}];
-  var cuotaNum=0;
-  for(var a=0;a<años.length;a++){
-    for(var i=0;i<años[a].cuotas;i++){
-      cuotaNum++;
-      var fc=new Date(fechaBase);
-      fc.setMonth(fechaBase.getMonth()+cuotaNum-1);
-      // Solo crear cobros para meses futuros
-      if(fc>ahora){
-        cobros.push({
-          concepto:'Alquiler Fashion Collection — Cuota '+cuotaNum+'/36 ('+años[a].label+')',
-          proyecto:'Terrada 622-624 — UF2',
-          origen:'Fashion Collection',
-          tipo:'alquiler',
-          monto:años[a].monto,
-          fecha_pactada:fc.toISOString().split('T')[0],
-          cobrado:false,
-          contrato_id:ctrId
-        });
-      }
-    }
+  var fechaBase=new Date('2026-03-15T12:00:00');
+  for(var i=0;i<12;i++){
+    var fc=new Date(fechaBase);
+    fc.setMonth(fechaBase.getMonth()+i);
+    var fechaStr=fc.toISOString().split('T')[0];
+    var yaCobrada=(i<2); // cuota 1 (marzo) y 2 (abril) ya cobradas
+    cobros.push({
+      concepto:'Alquiler Fashion Collection — Cuota '+(i+1)+'/12',
+      proyecto:'Terrada 622-624 — UF2',
+      origen:'Fashion Collection',
+      tipo:'alquiler',
+      monto:4300,
+      fecha_pactada:fechaStr,
+      cobrado:yaCobrada,
+      fecha_cobro:yaCobrada?fechaStr:null,
+      confirmado_por:yaCobrada?'Maxi Franco':null,
+      contrato_id:ctrId
+    });
   }
-  if(cobros.length>0){
-    await sb.from('cobros').insert(cobros);
-  }
-  console.log('Fashion Collection migrado: '+cobros.length+' cobros futuros creados');
+  await sb.from('cobros').insert(cobros);
+  console.log('Fashion Collection migrado: 12 cuotas (2 cobradas, 10 pendientes)');
 }
 
 async function actualizarRentaDashboard(){
