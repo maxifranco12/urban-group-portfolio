@@ -1074,28 +1074,74 @@ async function borrarMovCaja(id,concepto,monto){
 }
 
 async function actualizarRentaDashboard(){
-  var {data}=await sb.from('contratos').select('*').eq('activo',true);
-  if(!data||data.length===0){
-    $$('dash-renta').textContent='U$D 0';
-    $$('dash-renta-sub').textContent='sin contratos activos';
-    return;
-  }
-  // Calcular renta mensual actual (usar año 1 como default, o buscar el año actual según fecha_inicio)
   var totalMensual=0;
   var nombres=[];
-  data.forEach(function(c){
-    var ahora=new Date();
-    var inicio=c.fecha_inicio?new Date(c.fecha_inicio+'T12:00:00'):ahora;
-    var mesesDesdeInicio=Math.max(0,(ahora.getFullYear()-inicio.getFullYear())*12+(ahora.getMonth()-inicio.getMonth()));
-    var montoActual=0;
-    if(c.a1_cuotas&&mesesDesdeInicio<c.a1_cuotas){montoActual=c.a1_monto||0;}
-    else if(c.a2_cuotas&&mesesDesdeInicio<(c.a1_cuotas||0)+(c.a2_cuotas||0)){montoActual=c.a2_monto||0;}
-    else if(c.a3_monto){montoActual=c.a3_monto||0;}
-    else if(c.a1_monto){montoActual=c.a1_monto||0;}
-    if(montoActual>0){totalMensual+=montoActual;nombres.push(c.nombre);}
+  // 1. Rentas fijas de proyectos (ej: Fashion Collection)
+  PR.forEach(function(p){
+    if(p.r){
+      var match=p.r.match(/[\d.,]+/);
+      if(match){
+        var val=parseFloat(match[0].replace(/\./g,'').replace(',','.'));
+        if(val>0){totalMensual+=val;nombres.push(p.n.split(' — ')[0]);}
+      }
+    }
   });
+  // 2. Contratos activos en Supabase
+  var {data}=await sb.from('contratos').select('*').eq('activo',true);
+  if(data&&data.length>0){
+    data.forEach(function(c){
+      var ahora=new Date();
+      var inicio=c.fecha_inicio?new Date(c.fecha_inicio+'T12:00:00'):ahora;
+      var mesesDesdeInicio=Math.max(0,(ahora.getFullYear()-inicio.getFullYear())*12+(ahora.getMonth()-inicio.getMonth()));
+      var montoActual=0;
+      if(c.a1_cuotas&&mesesDesdeInicio<c.a1_cuotas){montoActual=c.a1_monto||0;}
+      else if(c.a2_cuotas&&mesesDesdeInicio<(c.a1_cuotas||0)+(c.a2_cuotas||0)){montoActual=c.a2_monto||0;}
+      else if(c.a3_monto){montoActual=c.a3_monto||0;}
+      else if(c.a1_monto){montoActual=c.a1_monto||0;}
+      if(montoActual>0){totalMensual+=montoActual;nombres.push(c.nombre);}
+    });
+  }
   $$('dash-renta').textContent=fmtUSD(totalMensual);
   $$('dash-renta-sub').textContent=nombres.join(' · ')||'sin contratos';
+}
+
+async function renderContratoBloque(c){
+  // Calcular cobros cobrados y pendientes de este contrato
+  var {data:cobrosData}=await sb.from('cobros').select('*').eq('contrato_id',c.id).order('fecha_pactada');
+  var cobrados=(cobrosData||[]).filter(function(x){return x.cobrado;});
+  var pendientes=(cobrosData||[]).filter(function(x){return !x.cobrado;});
+  var totalCobrado=cobrados.reduce(function(s,x){return s+Number(x.monto||0);},0);
+  var totalContrato=c.monto_total||0;
+  var saldoCobrar=totalContrato-totalCobrado;
+  var totalCuotas=getTotalCuotas(c);
+  var años=[];
+  if(c.a1_monto&&c.a1_cuotas)años.push({l:'Año 1',m:c.a1_monto,q:c.a1_cuotas});
+  if(c.a2_monto&&c.a2_cuotas)años.push({l:'Año 2',m:c.a2_monto,q:c.a2_cuotas});
+  if(c.a3_monto&&c.a3_cuotas)años.push({l:'Año 3',m:c.a3_monto,q:c.a3_cuotas});
+  var titulo=c.tipo+' '+(c.local||'')+' — '+c.nombre;
+  var h='<div class="card" style="margin-top:12px;">'+
+    '<div class="ch"><div class="ct">'+titulo+'</div><span class="badge bb">En cobro</span></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);">'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Precio total</div><div style="font-weight:500;" class="mono">'+fmtUSD(totalContrato)+'</div></div>'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Total cobrado</div><div style="font-weight:500;color:var(--green);" class="mono">'+fmtUSD(totalCobrado)+'</div></div>'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Saldo a cobrar</div><div style="font-weight:500;color:var(--amber);" class="mono">'+fmtUSD(saldoCobrar)+'</div></div>'+
+      '<div style="padding:12px 16px;"><div class="ml">Plazo</div><div style="font-weight:500;">'+años.length+' año'+(años.length>1?'s':'')+' · '+totalCuotas+' cuotas</div></div>'+
+    '</div>';
+  // Detalle por año
+  if(años.length>0){
+    h+='<div style="padding:12px 16px;border-top:1px solid var(--border);">';
+    años.forEach(function(a){
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--muted);">'+a.l+': '+a.q+' cuotas × '+fmtUSD(a.m)+'</span><span class="mono" style="font-weight:500;">'+fmtUSD(a.m*a.q)+'</span></div>';
+    });
+    h+='</div>';
+  }
+  // Footer con estado de cobro
+  h+='<div style="padding:10px 16px;background:var(--s2);border-top:1px solid var(--border);font-size:12px;color:var(--muted);">'+
+    'Cuotas cobradas: <b style="color:var(--green);">'+cobrados.length+'/'+totalCuotas+'</b>'+
+    (pendientes.length>0?' · <b style="color:var(--amber);">Faltan '+pendientes.length+' cuotas</b>':' · <b style="color:var(--green);">Completo ✓</b>')+
+    (c.fecha_inicio?' · Inicio: '+fmtFecha(c.fecha_inicio):'')+
+    '</div></div>';
+  return h;
 }
 
 function renderContratoCard(c){
@@ -1369,18 +1415,18 @@ async function VF(id){
         <div style="padding:10px 16px;background:var(--s2);border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
           Cuotas cobradas: ene/feb/mar 2026 (U$D 9.000 c/u) · <b style="color:var(--amber);">Faltan 29 cuotas + 2 refuerzos</b> · Refuerzos: ene 2027 y ene 2028
         </div>
-      </div>
-      <div class="card">
-        <div class="ch"><div class="ct">Estado de los 4 locales</div></div>
-        <table><thead><tr><th>Local</th><th>Lote</th><th>Estado</th></tr></thead><tbody id="cuenca-locales-tbody">
-          <tr><td>Local 1</td><td>Cuenca 921</td><td><span class="badge bgr">Sin vender</span></td></tr>
-          <tr><td><b>Local 2</b></td><td>Cuenca 921</td><td><span class="badge bg">Vendido — Gastón Duek · U$D 400.000</span></td></tr>
-          <tr><td>Local 3</td><td>Cuenca 925</td><td><span class="badge bgr">Sin vender</span></td></tr>
-          <tr><td>Local 4</td><td>Cuenca 925</td><td><span class="badge bgr">Sin vender</span></td></tr>
-        </tbody></table>
       </div>`;
-    // Actualizar locales con contratos dinámicos
+    // Cargar contratos y renderizar bloques tipo "Venta Local 2"
     var _ctrLocales=await cargarContratos("Cuenca");
+    for(var _ci=0;_ci<_ctrLocales.length;_ci++){
+      var _bloque=await renderContratoBloque(_ctrLocales[_ci]);
+      document.getElementById("PF").innerHTML+=_bloque;
+    }
+    // Tabla de estado de locales (dinámica)
+    $$('PF').innerHTML+=`<div class="card" style="margin-top:12px;">
+        <div class="ch"><div class="ct">Estado de los 4 locales</div></div>
+        <table><thead><tr><th>Local</th><th>Lote</th><th>Estado</th></tr></thead><tbody id="cuenca-locales-tbody"></tbody></table>
+      </div>`;
     var lotes={'Local 1':'Cuenca 921','Local 2':'Cuenca 921','Local 3':'Cuenca 925','Local 4':'Cuenca 925'};
     var estadoBase={'Local 1':'Sin vender','Local 2':'Vendido — Gastón Duek · U$D 400.000','Local 3':'Sin vender','Local 4':'Sin vender'};
     var badgeBase={'Local 1':'bgr','Local 2':'bg','Local 3':'bgr','Local 4':'bgr'};
@@ -1525,6 +1571,12 @@ _fichaProyectoNombre=p.n;
   if(proj && cuotasPagadas!==null) proj.c = cuotasPagadas;
   // Cargar contratos adheridos al proyecto
   var _ctrs=await cargarContratos(p.n.split(' — ')[0]);
+  // Renderizar bloques tipo "Venta Local 2" para cada contrato
+  for(var _cj=0;_cj<_ctrs.length;_cj++){
+    var _blq=await renderContratoBloque(_ctrs[_cj]);
+    $$('PF').innerHTML+=_blq;
+  }
+  // Card de contratos adheridos con editar/borrar
   if(_ctrs.length>0){
     var _chtml2='<div class="card"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_ctrs.length+'</span></div>';
     _chtml2+=_ctrs.map(function(c){ return renderContratoCard(c); }).join('')+'</div>';
