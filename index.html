@@ -669,6 +669,7 @@ async function login(nombre,ini,rol){
   $$('pago-fecha').value=new Date().toISOString().split('T')[0];
   await cargarProyectosDeSupabase();
   rDT();rc();
+  await migrarFashionSiNoExiste();
   await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
   actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
@@ -1073,20 +1074,61 @@ async function borrarMovCaja(id,concepto,monto){
   cargarSaldo();cargarMovimientos();
 }
 
+async function migrarFashionSiNoExiste(){
+  // Verificar si ya existe el contrato de Fashion Collection
+  var {data}=await sb.from('contratos').select('id').eq('nombre','Fashion Collection').eq('activo',true);
+  if(data&&data.length>0)return; // ya existe
+  // Crear contrato de Fashion Collection (Terrada UF2)
+  var fashionData={
+    proyecto:'Terrada 622-624 — UF2',obra:'Terrada',local:'UF2',
+    nombre:'Fashion Collection',tipo:'Alquiler',
+    fecha_inicio:'2024-01-01',fecha_fin:null,
+    a1_monto:4300,a1_cuotas:12,
+    a2_monto:4300,a2_cuotas:12,
+    a3_monto:4300,a3_cuotas:12,
+    monto_total:4300*36,
+    notas:'Contrato de alquiler vigente — migrado automáticamente',
+    activo:true
+  };
+  var {data:ins,error}=await sb.from('contratos').insert(fashionData).select();
+  if(error){console.log('Error migrando Fashion:',error);return;}
+  // Generar cobros solo para cuotas futuras (desde hoy en adelante)
+  var ctrId=ins[0].id;
+  var cobros=[];
+  var fechaBase=new Date('2024-01-01T12:00:00');
+  var ahora=new Date();
+  var años=[{monto:4300,cuotas:12,label:'Año 1'},{monto:4300,cuotas:12,label:'Año 2'},{monto:4300,cuotas:12,label:'Año 3'}];
+  var cuotaNum=0;
+  for(var a=0;a<años.length;a++){
+    for(var i=0;i<años[a].cuotas;i++){
+      cuotaNum++;
+      var fc=new Date(fechaBase);
+      fc.setMonth(fechaBase.getMonth()+cuotaNum-1);
+      // Solo crear cobros para meses futuros
+      if(fc>ahora){
+        cobros.push({
+          concepto:'Alquiler Fashion Collection — Cuota '+cuotaNum+'/36 ('+años[a].label+')',
+          proyecto:'Terrada 622-624 — UF2',
+          origen:'Fashion Collection',
+          tipo:'alquiler',
+          monto:años[a].monto,
+          fecha_pactada:fc.toISOString().split('T')[0],
+          cobrado:false,
+          contrato_id:ctrId
+        });
+      }
+    }
+  }
+  if(cobros.length>0){
+    await sb.from('cobros').insert(cobros);
+  }
+  console.log('Fashion Collection migrado: '+cobros.length+' cobros futuros creados');
+}
+
 async function actualizarRentaDashboard(){
   var totalMensual=0;
   var nombres=[];
-  // 1. Rentas fijas de proyectos que son alquiler (ej: Fashion Collection)
-  PR.forEach(function(p){
-    if(p.r && p.e && (p.e.toLowerCase().includes('alquiler') || p.t.toLowerCase().includes('alquiler'))){
-      var match=p.r.match(/[\d.,]+/);
-      if(match){
-        var val=parseFloat(match[0].replace(/\./g,'').replace(',','.'));
-        if(val>0){totalMensual+=val;nombres.push(p.n.split(' — ')[0]);}
-      }
-    }
-  });
-  // 2. Contratos activos en Supabase
+  // Contratos activos en Supabase (incluye Fashion migrado)
   var {data}=await sb.from('contratos').select('*').eq('activo',true);
   if(data&&data.length>0){
     data.forEach(function(c){
