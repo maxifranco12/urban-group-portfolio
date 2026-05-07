@@ -6,6 +6,7 @@
 <title>Urban Group — Portfolio</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f7f6f3;--surface:#fff;--s2:#fafaf8;
@@ -343,11 +344,16 @@ tr:hover td{background:var(--s2);}
 <!-- REPORTES -->
 <div id="p-reportes" class="page">
   <div class="ph"><div><div class="pt">Reportes</div><div class="ps">Para Lucía · datos en tiempo real</div></div>
-    <button class="btn btnp" onclick="generarReporte()">Generar reporte</button>
+    <div class="gap">
+      <button class="btn btnp" onclick="generarReporte()">Generar reporte</button>
+      <button class="btn" onclick="backupExcel()" style="background:var(--green-bg);color:var(--green);border-color:var(--green);">📥 Backup Excel</button>
+      <button class="btn" onclick="backupPDF()" style="background:var(--blue-bg,#e8f0fe);color:var(--blue,#1a73e8);border-color:var(--blue,#1a73e8);">📄 Backup PDF</button>
+    </div>
   </div>
   <div id="REP-CONTENT">
     <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);">
-      Hacé clic en <b>Generar reporte</b> para ver los datos actualizados desde la base de datos.
+      Hacé clic en <b>Generar reporte</b> para ver los datos actualizados desde la base de datos.<br>
+      <span style="margin-top:8px;display:inline-block;">📥 <b>Backup Excel</b> exporta todas las tablas en hojas separadas &nbsp;·&nbsp; 📄 <b>Backup PDF</b> genera un resumen completo</span>
     </div>
   </div>
 </div>
@@ -1784,6 +1790,148 @@ function aplicarCuotaSugerida(){
 function TM(){const v=$$('pago-moneda').value;$$('pago-ars-row').style.display=v==='usd'?'none':'grid';$$('pago-usd-row').style.display=v==='ars'?'none':'block';$$('pago-usd-calc').style.display='none';}
 function tabCobro(k,el){['pend','hist'].forEach(t=>{const d=$$('tc-'+t);if(d)d.style.display=t===k?'block':'none';});document.querySelectorAll('#p-cobros .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');if(k==='hist')cargarCobrosPage();}
 function filtCaja(v){$$('CAJAMOV')?.querySelectorAll('.mov-row').forEach(r=>{if(!v){r.style.display='';return;}r.style.display=(v==='ing'&&r.dataset.tipo==='ing')||(v==='eg'&&r.dataset.tipo==='eg')?'':'none';});}
+
+// ═══════════════════════════════════════════════════
+// BACKUP — Solo lectura, no modifica nada
+// ═══════════════════════════════════════════════════
+async function obtenerTodosLosDatos(){
+  toast('Descargando datos de Supabase…','ok2');
+  var [caja,cobros,gastos,alarmas,contratos,pagos]=await Promise.all([
+    sb.from('caja_movimientos').select('*').order('fecha',{ascending:false}),
+    sb.from('cobros').select('*').order('fecha_pactada',{ascending:false}),
+    sb.from('gastos').select('*').order('fecha',{ascending:false}),
+    sb.from('alarmas').select('*').order('created_at',{ascending:false}),
+    sb.from('contratos').select('*').order('created_at',{ascending:false}),
+    sb.from('pagos_cuotas').select('*').order('created_at',{ascending:false})
+  ]);
+  return {
+    caja:caja.data||[],
+    cobros:cobros.data||[],
+    gastos:gastos.data||[],
+    alarmas:alarmas.data||[],
+    contratos:contratos.data||[],
+    pagos:pagos.data||[]
+  };
+}
+
+async function backupExcel(){
+  try{
+    var d=await obtenerTodosLosDatos();
+    var wb=XLSX.utils.book_new();
+    var fechaHoy=new Date().toLocaleDateString('es-AR');
+    // Hoja 1: Caja USD
+    if(d.caja.length>0){
+      var cRows=d.caja.map(function(r){return{Fecha:r.fecha,Concepto:r.concepto,Tipo:r.tipo,Monto:Number(r.monto),Proyecto:r.proyecto||'',Confirmado:r.confirmado_por||''};});
+      var ws1=XLSX.utils.json_to_sheet(cRows);
+      XLSX.utils.book_append_sheet(wb,ws1,'Caja USD');
+    }
+    // Hoja 2: Cobros
+    if(d.cobros.length>0){
+      var coRows=d.cobros.map(function(r){return{Concepto:r.concepto,Proyecto:r.proyecto||'',Origen:r.origen||'',Tipo:r.tipo,Monto:Number(r.monto),Fecha_Pactada:r.fecha_pactada||'',Cobrado:r.cobrado?'SI':'NO',Fecha_Cobro:r.fecha_cobro||'',Confirmado:r.confirmado_por||''};});
+      var ws2=XLSX.utils.json_to_sheet(coRows);
+      XLSX.utils.book_append_sheet(wb,ws2,'Cobros');
+    }
+    // Hoja 3: Gastos
+    if(d.gastos.length>0){
+      var gRows=d.gastos.map(function(r){return{Fecha:r.fecha,Proyecto:r.proyecto||'',Tipo:r.tipo,Descripcion:r.descripcion||'',Monto_USD:Number(r.monto_usd||0),Monto_ARS:r.monto_ars?Number(r.monto_ars):'',Cotizacion:r.cotizacion||'',Origen:r.origen_fondos||'',Inversor:r.inversor||'',Sale_Caja:r.sale_de_caja?'SI':'NO'};});
+      var ws3=XLSX.utils.json_to_sheet(gRows);
+      XLSX.utils.book_append_sheet(wb,ws3,'Gastos');
+    }
+    // Hoja 4: Contratos
+    if(d.contratos.length>0){
+      var ctRows=d.contratos.map(function(r){return{Obra:r.obra||'',Local:r.local||'',Inquilino:r.nombre,Tipo:r.tipo,Inicio:r.fecha_inicio||'',Fin:r.fecha_fin||'',A1_Monto:r.a1_monto||'',A1_Cuotas:r.a1_cuotas||'',A2_Monto:r.a2_monto||'',A2_Cuotas:r.a2_cuotas||'',A3_Monto:r.a3_monto||'',A3_Cuotas:r.a3_cuotas||'',Total:r.monto_total||'',Activo:r.activo?'SI':'NO',Notas:r.notas||''};});
+      var ws4=XLSX.utils.json_to_sheet(ctRows);
+      XLSX.utils.book_append_sheet(wb,ws4,'Contratos');
+    }
+    // Hoja 5: Pagos/Cuotas
+    if(d.pagos.length>0){
+      var pRows=d.pagos.map(function(r){return{Proyecto:r.proyecto_nombre||'',Cuota:r.nro_cuota,Fecha:r.fecha,Monto_USD:Number(r.monto_usd||0),Monto_ARS:r.monto_ars?Number(r.monto_ars):'',Cotizacion:r.cotizacion||'',Forma:r.forma||''};});
+      var ws5=XLSX.utils.json_to_sheet(pRows);
+      XLSX.utils.book_append_sheet(wb,ws5,'Pagos Cuotas');
+    }
+    // Hoja 6: Alarmas
+    if(d.alarmas.length>0){
+      var aRows=d.alarmas.map(function(r){return{Tipo:r.tipo,Proyecto:r.proyecto||'',Fecha:r.fecha,Monto:r.monto||'',Descripcion:r.descripcion||'',Estado:r.estado||''};});
+      var ws6=XLSX.utils.json_to_sheet(aRows);
+      XLSX.utils.book_append_sheet(wb,ws6,'Alarmas');
+    }
+    // Descargar
+    var fileName='Backup_UrbanGroup_'+new Date().toISOString().split('T')[0]+'.xlsx';
+    XLSX.writeFile(wb,fileName);
+    toast('✅ Backup Excel descargado: '+fileName,'ok2');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
+async function backupPDF(){
+  try{
+    var d=await obtenerTodosLosDatos();
+    var saldo=await calcularSaldo();
+    var fecha=new Date().toLocaleString('es-AR');
+    var html='<html><head><meta charset="UTF-8"><title>Backup Urban Group</title><style>';
+    html+='body{font-family:Arial,sans-serif;font-size:11px;color:#1a1916;margin:20px;} ';
+    html+='h1{font-size:18px;border-bottom:2px solid #1a1916;padding-bottom:6px;} ';
+    html+='h2{font-size:14px;margin-top:24px;color:#444;border-bottom:1px solid #ddd;padding-bottom:4px;} ';
+    html+='table{width:100%;border-collapse:collapse;margin:8px 0 16px;} ';
+    html+='th,td{border:1px solid #ddd;padding:5px 8px;text-align:left;font-size:10px;} ';
+    html+='th{background:#f5f5f5;font-weight:bold;} ';
+    html+='.green{color:#16a34a;} .red{color:#dc2626;} .mono{font-family:monospace;} ';
+    html+='.resumen{background:#f9f9f6;padding:12px;border:1px solid #e8e6e0;border-radius:6px;margin:10px 0;} ';
+    html+='@media print{body{margin:10px;}} ';
+    html+='</style></head><body>';
+    html+='<h1>BACKUP URBAN GROUP PORTFOLIO</h1>';
+    html+='<div style="font-size:12px;color:#666;">Generado: '+fecha+' · Solo lectura · Datos en tiempo real desde Supabase</div>';
+    // Resumen
+    html+='<div class="resumen"><b>SALDO CAJA USD:</b> <span class="mono green">U$D '+Number(saldo).toLocaleString('es-AR')+'</span>';
+    var activos=d.contratos.filter(function(c){return c.activo;});
+    html+=' &nbsp;·&nbsp; <b>Contratos activos:</b> '+activos.length;
+    var pendientes=d.cobros.filter(function(c){return !c.cobrado;});
+    html+=' &nbsp;·&nbsp; <b>Cobros pendientes:</b> '+pendientes.length+'</div>';
+    // Caja
+    html+='<h2>CAJA USD ('+d.caja.length+' movimientos)</h2>';
+    html+='<table><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Monto</th><th>Proyecto</th></tr>';
+    d.caja.forEach(function(r){
+      var m=Number(r.monto);
+      html+='<tr><td>'+r.fecha+'</td><td>'+r.concepto+'</td><td>'+r.tipo+'</td><td class="mono '+(m<0?'red':'green')+'">'+m.toLocaleString('es-AR')+'</td><td>'+(r.proyecto||'')+'</td></tr>';
+    });
+    html+='</table>';
+    // Cobros
+    html+='<h2>COBROS ('+d.cobros.length+' registros)</h2>';
+    html+='<table><tr><th>Concepto</th><th>Monto</th><th>Fecha pactada</th><th>Cobrado</th><th>Fecha cobro</th></tr>';
+    d.cobros.forEach(function(r){
+      html+='<tr><td>'+r.concepto+'</td><td class="mono">'+Number(r.monto).toLocaleString('es-AR')+'</td><td>'+(r.fecha_pactada||'')+'</td><td>'+(r.cobrado?'✅ SI':'⏳ NO')+'</td><td>'+(r.fecha_cobro||'')+'</td></tr>';
+    });
+    html+='</table>';
+    // Gastos
+    html+='<h2>GASTOS ('+d.gastos.length+' registros)</h2>';
+    html+='<table><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>USD</th><th>Descripción</th><th>Origen</th></tr>';
+    d.gastos.forEach(function(r){
+      html+='<tr><td>'+r.fecha+'</td><td>'+(r.proyecto||'')+'</td><td>'+r.tipo+'</td><td class="mono red">'+Number(r.monto_usd||0).toLocaleString('es-AR')+'</td><td>'+(r.descripcion||'')+'</td><td>'+(r.origen_fondos||'')+'</td></tr>';
+    });
+    html+='</table>';
+    // Contratos
+    html+='<h2>CONTRATOS ('+d.contratos.length+' registros)</h2>';
+    html+='<table><tr><th>Obra</th><th>Local</th><th>Inquilino</th><th>Tipo</th><th>Total</th><th>Inicio</th><th>Fin</th><th>Activo</th></tr>';
+    d.contratos.forEach(function(r){
+      html+='<tr><td>'+(r.obra||'')+'</td><td>'+(r.local||'')+'</td><td>'+r.nombre+'</td><td>'+r.tipo+'</td><td class="mono">'+(r.monto_total?Number(r.monto_total).toLocaleString('es-AR'):'')+'</td><td>'+(r.fecha_inicio||'')+'</td><td>'+(r.fecha_fin||'')+'</td><td>'+(r.activo?'SI':'NO')+'</td></tr>';
+    });
+    html+='</table>';
+    // Pagos
+    html+='<h2>PAGOS / CUOTAS ('+d.pagos.length+' registros)</h2>';
+    html+='<table><tr><th>Proyecto</th><th>Cuota</th><th>Fecha</th><th>USD</th><th>ARS</th><th>Cotización</th><th>Forma</th></tr>';
+    d.pagos.forEach(function(r){
+      html+='<tr><td>'+(r.proyecto_nombre||'')+'</td><td>'+r.nro_cuota+'</td><td>'+r.fecha+'</td><td class="mono">'+Number(r.monto_usd||0).toLocaleString('es-AR')+'</td><td>'+(r.monto_ars?Number(r.monto_ars).toLocaleString('es-AR'):'')+'</td><td>'+(r.cotizacion||'')+'</td><td>'+(r.forma||'')+'</td></tr>';
+    });
+    html+='</table>';
+    html+='<div style="margin-top:20px;font-size:10px;color:#aaa;text-align:center;">Urban Group Portfolio — Backup generado automáticamente — No modificar</div>';
+    html+='</body></html>';
+    // Abrir en nueva ventana para imprimir/guardar como PDF
+    var w=window.open('','_blank');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(function(){w.print();},500);
+    toast('✅ PDF abierto — usá Ctrl+P o ⌘P para guardar como PDF','ok2');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
 </script>
 
 <!-- MODAL EDITAR CUOTA -->
