@@ -597,8 +597,8 @@ let pendKey = null;
 let pendCobros = [];
 
 const PR=[
-  {id:'ce',n:'Cerviño 3724 — 205',t:'Pozo Brukman',s:'Urban Group',m2:85.51,inv:'U$D 186.148',c:40,tc:48,e:'En obra',ec:'bb',ent:'Mar 2027'},
-  {id:'in',n:'Rep. de la India 2843 — P13',t:'Pozo Brukman',s:'Urban Group',m2:180.69,inv:'U$D 359.552',c:14,tc:48,e:'En obra',ec:'bb',ent:'Oct 2027'},
+  {id:'ce',n:'Cerviño 3724 — 205',t:'Pozo Brukman',s:'Urban Group',m2:85.51,inv:'U$D 190.191',c:40,tc:48,e:'En obra',ec:'bb',ent:'Mar 2027'},
+  {id:'in',n:'Rep. de la India 2843 — P13',t:'Pozo Brukman',s:'Urban Group',m2:180.69,inv:'U$D 370.595',c:14,tc:48,e:'En obra',ec:'bb',ent:'Oct 2027'},
   {id:'t6',n:'Terrada 622-624 — UF2',t:'Fábrica · Alquiler',s:'Urban Group',m2:600,inv:'U$D 765.480',c:null,tc:null,e:'En alquiler',ec:'bg',ent:null,r:'U$D 4.300/mes'},
   {id:'t5',n:'Terrada 526 — Local 2',t:'Local · Uso propio',s:'Urban Group',m2:206.5,inv:'U$D 417.751',c:null,tc:null,e:'Uso propio',ec:'bgr',ent:null},
   {id:'gi',n:'Giribone 2363',t:'Obra propia ISK',s:'Urban Group',m2:1151,inv:'U$D 578.119',c:7,tc:null,e:'En obra',ec:'ba',ent:'Jun 2026'},
@@ -1561,7 +1561,7 @@ _fichaProyectoNombre=p.n;
         ${p.r?`<div class="fr2"><span class="fk">Renta</span><span class="fv mono" style="color:var(--green);">${p.r}</span></div>`:''}
       </div>
       <div class="fc"><div class="fl2">Inversión</div>
-        <div class="fr2"><span class="fk">Total invertido</span><span class="fv mono" style="color:var(--blue);">${p.inv}</span></div>
+        <div class="fr2"><span class="fk">Total invertido</span><span class="fv mono" style="color:var(--blue);">${totalUSD>0?fmtUSD(totalUSD):p.inv}</span></div>
         ${(function(){var gp=gastosProyecto||[];if(!gp.length)return '';var tot=gp.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);return '<div class="fr2" style="margin-top:4px;"><span class="fk" style="color:var(--red);">Gastos incurridos</span><span class="fv mono" style="color:var(--red);">+ '+fmtUSD(tot)+'</span></div>'+gp.map(function(g){return '<div class="fr2" style="font-size:11px;padding:2px 0;"><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);">- '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div>';}).join('');})()}
         ${cuotasPagadas!==null?`
         <div class="fr2"><span class="fk">Cuotas pagadas</span><span class="fv mono" style="color:var(--green);">${cuotasPagadas}${p.tc?' / '+p.tc:''}</span></div>
