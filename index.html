@@ -417,7 +417,8 @@ tr:hover td{background:var(--s2);}
 
 <!-- MODAL GASTO -->
 <div class="ov" id="m-gasto"><div class="modal">
-<div class="mt2">Registrar gasto</div>
+<div class="mt2" id="g-title">Registrar gasto</div>
+<input type="hidden" id="g-edit-id" value="">
 <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="g-proyecto"><option>General</option><option>Cerviño 3724</option><option>India 2843</option><option>Terrada 624</option><option>Terrada 526</option><option>Giribone 2363</option><option>ARYA Sumba</option><option>Córdoba 404</option><option>Córdoba 403</option><option>Cuenca Obra</option><option>Parque Avellaneda</option></select></div>
 <div class="fg"><label class="fl">Tipo</label><select class="fi" id="g-tipo"><option>ABL</option><option>Expensas</option><option>Escribanía</option><option>Comisión inmobiliaria</option><option>Mantenimiento</option><option>Cuota de obra</option><option>Impuesto inmobiliario</option><option>Honorarios</option><option>Otro</option></select></div>
 <div class="fg"><label class="fl">Moneda</label><select class="fi" id="g-moneda" onchange="toggleGastoMoneda()"><option value="USD">USD (Dólares)</option><option value="ARS">ARS (Pesos)</option></select></div>
@@ -983,59 +984,57 @@ toast("Gasto eliminado","ok2");
 }
 
 async function editarGastoCompleto(id){
-  var {data:g,error:e1}=await sb.from('gastos').select('*').eq('id',id).single();
+  var {data:g}=await sb.from('gastos').select('*').eq('id',id).single();
   if(!g){toast('Gasto no encontrado','err');return;}
-  var nuevoOrigen=prompt('Origen de fondos:\n1 = Caja USD Propia\n2 = Fondos Externos\nActual: '+(g.origen_fondos||'Caja USD Propia'),g.origen_fondos==='Fondos Externos'?'2':'1');
-  if(nuevoOrigen===null)return;
-  nuevoOrigen=(nuevoOrigen==='2'||nuevoOrigen.toLowerCase().includes('ext'))?'Fondos Externos':'Caja USD Propia';
-  var nuevoInversor=prompt('Inversor:',g.inversor||'Urban Group');
-  if(nuevoInversor===null)return;
-  var nuevaMoneda=prompt('Moneda (USD / ARS):',g.moneda||'USD');
-  if(nuevaMoneda===null)return;
-  var nuevoMonto=prompt('Monto USD:',g.monto_usd);
-  if(nuevoMonto===null)return;
-  var montoNum=parseFloat(nuevoMonto);
-  if(isNaN(montoNum)){toast('Monto inválido','err');return;}
-  var nuevaDesc=prompt('Descripción:',g.descripcion||'');
-  if(nuevaDesc===null)return;
-  var nuevoSaleDeCaja=(nuevoOrigen!=='Fondos Externos');
-  var viejoSaleDeCaja=(g.sale_de_caja===true||g.sale_de_caja==='true');
-  // Actualizar gasto en Supabase
-  var {error}=await sb.from('gastos').update({
-    origen_fondos:nuevoOrigen,inversor:nuevoInversor,moneda:nuevaMoneda,
-    monto_usd:montoNum,descripcion:nuevaDesc,sale_de_caja:nuevoSaleDeCaja
-  }).eq('id',id);
-  if(error){toast('Error: '+error.message,'err');return;}
-  // Actualizar movimiento en caja según cambio de origen
-  if(viejoSaleDeCaja&&!nuevoSaleDeCaja){
-    // Antes salía de caja, ahora no → borrar movimiento de caja
-    await sb.from('caja_movimientos').delete().eq('gasto_id',id);
-  } else if(!viejoSaleDeCaja&&nuevoSaleDeCaja){
-    // Antes no salía, ahora sí → crear movimiento en caja
-    await sb.from('caja_movimientos').insert({
-      fecha:g.fecha,concepto:g.tipo+' — '+g.proyecto+(nuevaDesc?' ('+nuevaDesc+')':''),
-      tipo:'egreso',monto:-montoNum,proyecto:g.proyecto,confirmado_por:USUARIO,gasto_id:id
-    });
-  } else if(nuevoSaleDeCaja){
-    // Ambos salen de caja → actualizar monto/concepto en caja
-    await sb.from('caja_movimientos').update({
-      monto:-montoNum,concepto:g.tipo+' — '+g.proyecto+(nuevaDesc?' ('+nuevaDesc+')':'')
-    }).eq('gasto_id',id);
+  // Pre-cargar el modal de gasto con los datos existentes
+  $$('g-edit-id').value=id;
+  $$('g-title').textContent='Editar gasto';
+  $$('btn-guardar-gasto').textContent='Guardar cambios';
+  // Seleccionar proyecto
+  var selP=$$('g-proyecto');
+  for(var i=0;i<selP.options.length;i++){
+    if(selP.options[i].value===g.proyecto||g.proyecto.includes(selP.options[i].value)||selP.options[i].value.includes(g.proyecto.split(' ')[0])){
+      selP.value=selP.options[i].value;break;
+    }
   }
-  toast('Gasto actualizado ✓','ok2');
-  cargarSaldo();
-  // Recargar la ficha actual
-  var t=$$('PF').querySelector('.pt');
-  if(t){
-    if(t.textContent.includes('Cuenca'))VF('cuenca');
-    else{var pr=PR.find(function(p){return p.n===t.textContent;});if(pr)VF(pr.id);}
+  // Tipo
+  var selT=$$('g-tipo');
+  for(var j=0;j<selT.options.length;j++){
+    if(selT.options[j].value===g.tipo){selT.value=g.tipo;break;}
   }
+  // Moneda
+  $$('g-moneda').value=g.moneda||'USD';
+  toggleGastoMoneda();
+  // Montos
+  if(g.moneda==='ARS'){
+    $$('g-monto-ars').value=g.monto_ars||'';
+    $$('g-cotizacion').value=g.cotizacion||'';
+    $$('g-monto-usd-calc').value=g.monto_usd||'';
+    $$('g-fecha-ars').value=g.fecha||'';
+  } else {
+    $$('g-monto').value=g.monto_usd||'';
+    $$('g-fecha').value=g.fecha||'';
+  }
+  // Origen
+  $$('g-origen').value=g.origen_fondos||'Caja USD Propia';
+  // Inversor
+  var selI=$$('g-inversor');
+  for(var k=0;k<selI.options.length;k++){
+    if(selI.options[k].value===g.inversor){selI.value=g.inversor;break;}
+  }
+  // Descripción
+  $$('g-desc').value=g.descripcion||'';
+  // Guardar datos originales para comparar al guardar
+  window._gastoEditOriginal=g;
+  // Abrir modal
+  $$('m-gasto').classList.add('open');
 }
 async function guardarGasto(){
   const btn=$$('btn-guardar-gasto');
   if(btn.disabled)return;
-  btn.disabled=true;btn.textContent='Guardando…';
+  btn.disabled=true;var _origBtn=btn.textContent;btn.textContent='Guardando…';
   try{
+  const editId=$$('g-edit-id').value;
   const moneda=$$('g-moneda').value;
   let monto=0, monto_ars=null, cotizacion=null;
   if(moneda==='ARS'){
@@ -1051,7 +1050,7 @@ async function guardarGasto(){
   const origenFondos=$$('g-origen').value;
   const saleDeCaja=origenFondos!=='Fondos Externos';
   const inversor=$$('g-inversor').value;
-  const {data:_gInsData, error} = await sb.from('gastos').insert({
+  const gastoData={
     fecha:fecha,
     proyecto:$$('g-proyecto').value,
     tipo:$$('g-tipo').value,
@@ -1064,27 +1063,61 @@ async function guardarGasto(){
     inversor:inversor,
     pagado:true,
     sale_de_caja:saleDeCaja
-  }).select();
-  if(error){toast('Error: '+error.message,'err');return;}
-  // Solo registrar egreso en caja si sale de caja propia
-  if(saleDeCaja){
-    var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
-    await sb.from('caja_movimientos').insert({
-      fecha:fecha,
-      concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
-      tipo:'egreso',
-      monto:-monto,
-      proyecto:$$('g-proyecto').value,
-      confirmado_por:USUARIO,
-      gasto_id:_gId
-    });
+  };
+  if(editId){
+    // === MODO EDICIÓN ===
+    var orig=window._gastoEditOriginal||{};
+    var viejoSaleDeCaja=(orig.sale_de_caja===true||orig.sale_de_caja==='true');
+    var {error}=await sb.from('gastos').update(gastoData).eq('id',editId);
+    if(error){toast('Error: '+error.message,'err');return;}
+    // Actualizar caja según cambio de origen
+    var concepto=gastoData.tipo+' — '+gastoData.proyecto+(gastoData.descripcion?' ('+gastoData.descripcion+')':'');
+    if(viejoSaleDeCaja&&!saleDeCaja){
+      await sb.from('caja_movimientos').delete().eq('gasto_id',editId);
+    } else if(!viejoSaleDeCaja&&saleDeCaja){
+      await sb.from('caja_movimientos').insert({
+        fecha:fecha,concepto:concepto,tipo:'egreso',monto:-monto,
+        proyecto:gastoData.proyecto,confirmado_por:USUARIO,gasto_id:editId
+      });
+    } else if(saleDeCaja){
+      await sb.from('caja_movimientos').update({
+        monto:-monto,concepto:concepto,fecha:fecha
+      }).eq('gasto_id',editId);
+    }
+    cm('m-gasto');
+    toast('Gasto actualizado ✓','ok2');
+    // Resetear modal
+    $$('g-edit-id').value='';
+    $$('g-title').textContent='Registrar gasto';
+    window._gastoEditOriginal=null;
+    cargarSaldo();
+    // Recargar ficha si está abierta
+    var t=$$('PF')&&$$('PF').querySelector('.pt');
+    if(t){
+      if(t.textContent.includes('Cuenca'))VF('cuenca');
+      else{var pr=PR.find(function(p){return p.n===t.textContent;});if(pr)VF(pr.id);}
+    }
+    if($$('p-gastos').classList.contains('active'))cargarGastos();
+  } else {
+    // === MODO CREACIÓN ===
+    const {data:_gInsData, error} = await sb.from('gastos').insert(gastoData).select();
+    if(error){toast('Error: '+error.message,'err');return;}
+    if(saleDeCaja){
+      var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
+      await sb.from('caja_movimientos').insert({
+        fecha:fecha,
+        concepto:$$('g-tipo').value+' — '+$$('g-proyecto').value+($$('g-desc').value?' ('+$$('g-desc').value+')':''),
+        tipo:'egreso',monto:-monto,proyecto:$$('g-proyecto').value,
+        confirmado_por:USUARIO,gasto_id:_gId
+      });
+    }
+    cm('m-gasto');
+    toast(saleDeCaja?'Gasto registrado y descontado de caja ✓':'Gasto registrado (fondos externos, no impacta caja) ✓','ok2');
+    cargarSaldo();
+    if($$('p-gastos').classList.contains('active'))cargarGastos();
   }
-  cm('m-gasto');
-  toast(saleDeCaja?'Gasto registrado y descontado de caja ✓':'Gasto registrado (fondos externos, no impacta caja) ✓','ok2');
-  cargarSaldo();
-  if($$('p-gastos').classList.contains('active'))cargarGastos();
   }catch(e){toast('Error inesperado: '+e.message,'err');}
-  finally{btn.disabled=false;btn.textContent='Registrar gasto';}
+  finally{btn.disabled=false;btn.textContent=_origBtn;}
 }
 
 async function guardarMovimiento(){
@@ -1772,7 +1805,7 @@ async function generarReporte(){
 // MODALES Y UTILS
 // ═══════════════════════════════════════════════════
 const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso',contrato:'m-contrato'};
-function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';if(t==='contrato')resetModalContrato();const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){var hoy=new Date().toISOString().split("T")[0];if($$("g-fecha"))$$("g-fecha").value=hoy;if($$("g-fecha-ars"))$$("g-fecha-ars").value=hoy;toggleGastoMoneda();cargarUltimaCotizacion();if(window._fichaGastoProyecto){var _sgp=document.getElementById('g-proyecto');if(_sgp){for(var _gi=0;_gi<_sgp.options.length;_gi++){if(_sgp.options[_gi].value===window._fichaGastoProyecto||window._fichaGastoProyecto.includes(_sgp.options[_gi].value)||_sgp.options[_gi].value.includes(window._fichaGastoProyecto.split(' ')[0])){_sgp.value=_sgp.options[_gi].value;break;}}}window._fichaGastoProyecto='';}}}
+function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';if(t==='contrato')resetModalContrato();const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){$$('g-edit-id').value='';$$('g-title').textContent='Registrar gasto';$$('btn-guardar-gasto').textContent='Registrar gasto';window._gastoEditOriginal=null;$$('g-monto').value='';$$('g-desc').value='';$$('g-moneda').value='USD';$$('g-origen').value='Caja USD Propia';$$('g-inversor').value='Urban Group';var hoy=new Date().toISOString().split("T")[0];if($$("g-fecha"))$$("g-fecha").value=hoy;if($$("g-fecha-ars"))$$("g-fecha-ars").value=hoy;toggleGastoMoneda();cargarUltimaCotizacion();if(window._fichaGastoProyecto){var _sgp=document.getElementById('g-proyecto');if(_sgp){for(var _gi=0;_gi<_sgp.options.length;_gi++){if(_sgp.options[_gi].value===window._fichaGastoProyecto||window._fichaGastoProyecto.includes(_sgp.options[_gi].value)||_sgp.options[_gi].value.includes(window._fichaGastoProyecto.split(' ')[0])){_sgp.value=_sgp.options[_gi].value;break;}}}window._fichaGastoProyecto='';}}}
 function cm(id){$$(id).classList.remove('open');}
 document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
