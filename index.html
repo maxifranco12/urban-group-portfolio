@@ -1800,7 +1800,11 @@ async function actualizarInvertidoReal(){
     var cuotas=cuotasPorProy[p.n]||0;
     var gastosTotal=gastosPorProy[p.n]||0;
     var totalReal=anticipo+cuotas+gastosTotal;
-    if(totalReal>0){
+    // Parsear el valor hardcodeado actual para comparar
+    var invMatch=p.inv?p.inv.match(/[\d.,]+/):null;
+    var invActual=invMatch?parseFloat(invMatch[0].replace(/\./g,'').replace(',','.')):0;
+    // Solo actualizar si el cálculo dinámico supera al hardcodeado
+    if(totalReal>0 && totalReal>=invActual){
       p.inv=fmtUSD(totalReal);
     }
   });
