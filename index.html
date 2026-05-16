@@ -1814,33 +1814,182 @@ async function actualizarInvertidoReal(){
 }
 
 async function generarReporte(){
-  $$('REP-CONTENT').innerHTML='<div class="loading"><div class="spinner"></div>Generando reporte desde la base de datos…</div>';
-  const [saldo, {data:cobros}, {data:gastos}, {data:alarmas}] = await Promise.all([
+  $$('REP-CONTENT').innerHTML='<div class="loading"><div class="spinner"></div>Analizando portfolio completo…</div>';
+  try{
+  const [saldo, cobrosRes, gastosRes, alarmasRes, contratosRes, pagosRes] = await Promise.all([
     calcularSaldo(),
     sb.from('cobros').select('*'),
-    sb.from('gastos').select('monto_usd'),
-    sb.from('alarmas').select('id').eq('resuelta',false)
+    sb.from('gastos').select('*'),
+    sb.from('alarmas').select('*').eq('resuelta',false),
+    sb.from('contratos').select('*').eq('activo',true),
+    sb.from('pagos_cuotas').select('*')
   ]);
-  const pend=(cobros||[]).filter(c=>!c.cobrado).reduce((s,c)=>s+Number(c.monto),0);
-  const totalGastos=(gastos||[]).reduce((s,g)=>s+Number(g.monto_usd),0);
-  const fecha=new Date().toLocaleDateString('es-AR');
+  var cobros=cobrosRes.data||[], gastos=gastosRes.data||[], alarmas=alarmasRes.data||[];
+  var contratos=contratosRes.data||[], pagos=pagosRes.data||[];
+  var fecha=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  var hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+
+  // Cálculos
+  var cobrosPend=cobros.filter(c=>!c.cobrado);
+  var cobrosCobrados=cobros.filter(c=>c.cobrado);
+  var totalPend=cobrosPend.reduce((s,c)=>s+Number(c.monto||0),0);
+  var totalCobrado=cobrosCobrados.reduce((s,c)=>s+Number(c.monto||0),0);
+  var totalGastos=gastos.reduce((s,g)=>s+Number(g.monto_usd||0),0);
+  var gastosExternos=gastos.filter(g=>g.origen_fondos==='Fondos Externos').reduce((s,g)=>s+Number(g.monto_usd||0),0);
+  var gastosCaja=totalGastos-gastosExternos;
+  var totalInvertido=PR.reduce((s,p)=>{var m=p.inv?p.inv.match(/[\d.,]+/):null;return s+(m?parseFloat(m[0].replace(/\./g,'').replace(',','.')):0);},0);
+  var totalM2=PR.reduce((s,p)=>s+(typeof p.m2==='number'?p.m2:0),0);
+  var rentaMensual=contratos.reduce((s,c)=>s+Number(c.a1_monto||0),0);
+  // Fashion hardcoded
+  var fashionPR=PR.find(p=>p.r&&p.r.includes('4.300'));
+  if(fashionPR&&!contratos.find(c=>c.nombre==='Fashion Collection'))rentaMensual+=4300;
+
+  // Próximos cobros (30 días)
+  var hoy=new Date();
+  var en30=new Date();en30.setDate(hoy.getDate()+30);
+  var proxCobros=cobrosPend.filter(function(c){
+    if(!c.fecha_pactada)return false;
+    var f=new Date(c.fecha_pactada+'T12:00:00');
+    return f>=hoy&&f<=en30;
+  }).sort(function(a,b){return new Date(a.fecha_pactada)-new Date(b.fecha_pactada);});
+
+  // Gastos por proyecto
+  var gastosPorProy={};
+  gastos.forEach(function(g){
+    var k=g.proyecto||'Sin proyecto';
+    if(!gastosPorProy[k])gastosPorProy[k]=0;
+    gastosPorProy[k]+=Number(g.monto_usd||0);
+  });
+  var topGastos=Object.entries(gastosPorProy).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Proyectos en obra con progreso
+  var enObra=PR.filter(p=>p.tc&&p.c!==null);
+  var proysActivos=PR.filter(p=>p.e.includes('obra')||p.e.includes('constr')||p.e.includes('proceso'));
+
+  // Render
   $$('REP-CONTENT').innerHTML=`
-    <div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);display:flex;justify-content:space-between;align-items:center;">
-      <div><div style="font-size:15px;font-weight:500;">Reporte del portfolio</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">Generado el ${fecha} · Datos en tiempo real desde Supabase</div></div>
-      <button class="btn btns" onclick="window.print()">Imprimir / PDF</button>
+    <div style="background:linear-gradient(135deg,#1a1916 60%,#2d2b26);color:#fff;padding:28px 32px;border-radius:var(--rl);margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:4px;">Urban Group</div>
+          <div style="font-size:22px;font-weight:500;">Reporte ejecutivo del portfolio</div>
+          <div style="font-size:12px;color:#999;margin-top:4px;">${fecha} · ${hora} hs · Datos en tiempo real</div>
+        </div>
+        <button class="btn btns" onclick="window.print()" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2);">Imprimir / PDF</button>
+      </div>
     </div>
-    <div class="mg g4" style="margin-bottom:16px;">
-      <div class="mc ag"><div class="ml">Saldo caja USD</div><div class="mv mono" style="color:var(--blue);">${fmtUSD(saldo||0)}</div><div class="ms">al ${fecha}</div></div>
-      <div class="mc ag"><div class="ml">Pendientes confirmar</div><div class="mv mono" style="color:var(--amber);">${fmtUSD(pend)}</div><div class="ms">requieren tu acción</div></div>
-      <div class="mc ar"><div class="ml">Gastos registrados</div><div class="mv mono">${fmtUSD(totalGastos)}</div><div class="ms">todos los proyectos</div></div>
-      <div class="mc ab"><div class="ml">Alarmas activas</div><div class="mv mono">${(alarmas||[]).length}</div><div class="ms">sin resolver</div></div>
+
+    <div class="mg g4" style="margin-bottom:20px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;text-align:center;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Saldo caja USD</div>
+        <div style="font-size:26px;font-weight:500;color:var(--blue);font-family:'DM Mono',monospace;margin-top:4px;">${fmtUSD(saldo||0)}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;text-align:center;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Total invertido</div>
+        <div style="font-size:26px;font-weight:500;font-family:'DM Mono',monospace;margin-top:4px;">${fmtUSD(totalInvertido)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${PR.length} proyectos · ${totalM2.toLocaleString('es-AR')} m²</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;text-align:center;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Renta mensual</div>
+        <div style="font-size:26px;font-weight:500;color:var(--green);font-family:'DM Mono',monospace;margin-top:4px;">${fmtUSD(rentaMensual)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${contratos.length} contrato${contratos.length!==1?'s':''} activo${contratos.length!==1?'s':''}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;text-align:center;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Por cobrar</div>
+        <div style="font-size:26px;font-weight:500;color:var(--amber);font-family:'DM Mono',monospace;margin-top:4px;">${fmtUSD(totalPend)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${cobrosPend.length} cuota${cobrosPend.length!==1?'s':''} pendiente${cobrosPend.length!==1?'s':''}</div>
+      </div>
     </div>
-    <div class="card">
-      <div class="ch"><div class="ct">Estado por proyecto</div></div>
-      <div class="tw"><table><thead><tr><th>Proyecto</th><th>Socios</th><th>M²</th><th>Invertido</th><th>Estado</th></tr></thead><tbody>
-        ${PR.map(p=>`<tr><td><div class="tn">${p.n}</div></td><td>${p.s}</td><td class="mono">${p.m2}</td><td class="mono">${p.inv}</td><td><span class="badge ${p.ec}">${p.e}</span></td></tr>`).join('')}
-      </tbody></table></div>
-    </div>`;
+
+    ${proxCobros.length>0?`
+    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--amber);">
+      <div class="ch"><div class="ct">Próximos cobros (30 días)</div><span class="badge ba">${proxCobros.length} cuota${proxCobros.length!==1?'s':''}</span></div>
+      ${proxCobros.slice(0,8).map(c=>`<div style="display:flex;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px;">
+        <span>${c.concepto}</span>
+        <span class="mono" style="font-weight:500;">${fmtUSD(c.monto)} · ${fmtFecha(c.fecha_pactada)}</span>
+      </div>`).join('')}
+    </div>`:''}
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="ch"><div class="ct">Portfolio de proyectos</div><span class="badge bg">${PR.length} activos</span></div>
+      <div class="tw"><table>
+        <thead><tr><th>Proyecto</th><th>Socios</th><th>M²</th><th>Invertido</th><th>Progreso</th><th>Estado</th><th>Entrega</th></tr></thead>
+        <tbody>
+        ${PR.map(p=>{
+          var pctVal=p.tc&&p.c!==null?Math.round(p.c/p.tc*100):null;
+          return `<tr>
+            <td><div style="font-weight:500;">${p.n}</div><div style="font-size:10px;color:var(--muted);">${p.t}</div></td>
+            <td><span class="badge ${p.s==='Urban Group'?'bg':p.s.includes('Maxi')?'bb':p.s.includes('Tomi')?'ba':'bgr'}" style="font-size:10px;">${p.s}</span></td>
+            <td class="mono">${typeof p.m2==='number'?p.m2.toLocaleString('es-AR'):'—'}</td>
+            <td class="mono" style="font-weight:500;">${p.inv}</td>
+            <td>${pctVal!==null?`<div style="display:flex;align-items:center;gap:6px;"><div style="width:60px;height:6px;background:var(--border);border-radius:3px;"><div style="width:${pctVal}%;height:100%;background:${pctVal>70?'var(--green)':pctVal>30?'var(--blue)':'var(--amber)'};border-radius:3px;"></div></div><span style="font-size:10px;">${p.c}/${p.tc}</span></div>`:(p.r?`<span style="font-size:10px;color:var(--green);">${p.r}</span>`:'<span style="font-size:10px;color:var(--muted);">—</span>')}</td>
+            <td><span class="badge ${p.ec}" style="font-size:10px;">${p.e}</span></td>
+            <td style="font-size:11px;">${p.ent||'—'}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div class="card">
+        <div class="ch"><div class="ct">Análisis de gastos</div><span class="badge br">${fmtUSD(totalGastos)}</span></div>
+        <div style="padding:12px 16px;">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--border);">
+            <span>Gastos con caja propia</span><span class="mono" style="color:var(--red);font-weight:500;">${fmtUSD(gastosCaja)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--border);">
+            <span>Gastos con fondos externos</span><span class="mono" style="font-weight:500;">${fmtUSD(gastosExternos)}</span>
+          </div>
+          <div style="margin-top:10px;font-size:11px;font-weight:500;color:var(--muted);">Top gastos por proyecto</div>
+          ${topGastos.map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;">
+            <span style="color:var(--muted);">${k}</span><span class="mono" style="color:var(--red);">${fmtUSD(v)}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch"><div class="ct">Contratos activos</div><span class="badge bb">${contratos.length}</span></div>
+        ${contratos.length>0?contratos.map(c=>`<div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;">
+            <div><span style="font-weight:500;font-size:13px;">${c.nombre}</span> <span class="badge ${c.tipo==='Alquiler'?'bb':'bg'}" style="font-size:9px;">${c.tipo}</span></div>
+            <span class="mono" style="font-size:12px;font-weight:500;">${c.a1_monto?fmtUSD(c.a1_monto)+'/mes':''}</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${c.obra||''} ${c.local||''} · Total: ${c.monto_total?fmtUSD(c.monto_total):'—'}</div>
+        </div>`).join(''):'<div style="padding:16px;font-size:12px;color:var(--muted);text-align:center;">Sin contratos activos</div>'}
+      </div>
+    </div>
+
+    ${enObra.length>0?`
+    <div class="card" style="margin-bottom:16px;">
+      <div class="ch"><div class="ct">Progreso de obras</div></div>
+      ${enObra.map(p=>{
+        var pct2=Math.round(p.c/p.tc*100);
+        return `<div style="display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <div style="flex:1;"><div style="font-weight:500;font-size:13px;">${p.n}</div><div style="font-size:11px;color:var(--muted);">${p.t} · Entrega: ${p.ent||'TBD'}</div></div>
+          <div style="width:120px;"><div style="height:8px;background:var(--border);border-radius:4px;"><div style="width:${pct2}%;height:100%;background:${pct2>70?'var(--green)':'var(--blue)'};border-radius:4px;"></div></div></div>
+          <div class="mono" style="font-size:13px;font-weight:500;width:60px;text-align:right;">${pct2}%</div>
+          <div style="font-size:11px;color:var(--muted);width:50px;text-align:right;">${p.c}/${p.tc}</div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+
+    ${alarmas.length>0?`
+    <div class="card" style="border-left:3px solid var(--red);">
+      <div class="ch"><div class="ct">Alarmas sin resolver</div><span class="badge br">${alarmas.length}</span></div>
+      ${alarmas.map(a=>`<div style="display:flex;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px;">
+        <span>${a.tipo||''} — ${a.proyecto||''}</span>
+        <span style="color:var(--muted);">${a.fecha?fmtFecha(a.fecha):''} ${a.monto?'· '+fmtUSD(a.monto):''}</span>
+      </div>`).join('')}
+    </div>`:''}
+
+    <div style="text-align:center;padding:20px;font-size:10px;color:var(--hint);">
+      Urban Group Portfolio · Reporte generado automáticamente · ${fecha} ${hora}
+    </div>
+  `;
+  }catch(e){
+    $$('REP-CONTENT').innerHTML='<div style="padding:20px;color:var(--red);">Error generando reporte: '+e.message+'</div>';
+  }
   toast('Reporte generado ✓','ok2');
 }
 
