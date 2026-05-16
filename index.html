@@ -1515,6 +1515,7 @@ function rc(){
 
 async function VF(id){
   if(id==='cuenca'){
+    try{
     $$('PL').style.display='none';
     $$('PF').style.display='block';
     $$('PF').innerHTML=`
@@ -1593,6 +1594,7 @@ async function VF(id){
     }).join('')+'</div>';
     document.getElementById("PF").innerHTML+=_chtml;
   }
+  }catch(e){console.error('Error cargando ficha Cuenca:',e);toast('Error cargando ficha: '+e.message,'err');}
   return;
   }
   const p=PR.find(x=>x.id===id);if(!p)return;
