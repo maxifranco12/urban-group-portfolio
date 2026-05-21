@@ -1191,34 +1191,55 @@ async function borrarMovCaja(id,concepto,monto){
 }
 
 async function sincronizarCobrosPendientes(){
-  // Buscar cobros pendientes
+  // 1. Restaurar cuotas marcadas por error con auto-sync que no tienen movimiento real
+  //    (cuotas 4/12 y 5/12 de Fashion fueron borradas por error)
+  var {data:autoSynced}=await sb.from('cobros').select('id,monto,concepto,proyecto,fecha_pactada,fecha_cobro')
+    .eq('confirmado_por','auto-sync').eq('cobrado',true);
+  if(autoSynced&&autoSynced.length>0){
+    var {data:movsCaja}=await sb.from('caja_movimientos').select('monto,fecha,concepto');
+    movsCaja=movsCaja||[];
+    for(var r=0;r<autoSynced.length;r++){
+      var cobro=autoSynced[r];
+      // Verificar que realmente exista un movimiento de caja en la misma fecha ±3 días
+      var fechaCobro=cobro.fecha_cobro?new Date(cobro.fecha_cobro+'T12:00:00'):null;
+      var tieneMovReal=movsCaja.some(function(m){
+        if(Number(m.monto)!==Number(cobro.monto))return false;
+        if(!fechaCobro)return false;
+        var fechaMov=new Date(m.fecha+'T12:00:00');
+        var diff=Math.abs(fechaMov-fechaCobro)/(1000*60*60*24);
+        return diff<=3;
+      });
+      if(!tieneMovReal){
+        // No hay movimiento real que respalde este cobro — restaurar como pendiente
+        await sb.from('cobros').update({cobrado:false,fecha_cobro:null,confirmado_por:null}).eq('id',cobro.id);
+        console.log('Restaurada cuota: '+cobro.concepto);
+      }
+    }
+  }
+  // 2. Sincronizar: solo matchear cobros con movimientos de caja si coinciden
+  //    monto EXACTO + fecha del movimiento dentro de ±5 días de la fecha pactada del cobro
   var {data:pendientes}=await sb.from('cobros').select('id,monto,concepto,proyecto,fecha_pactada').eq('cobrado',false);
   if(!pendientes||pendientes.length===0)return;
-  // Buscar movimientos de caja tipo ingreso/alquiler
-  var {data:movs}=await sb.from('caja_movimientos').select('monto,concepto,fecha,proyecto').in('tipo',['ingreso','alquiler','aporte']);
+  var {data:movs}=await sb.from('caja_movimientos').select('monto,concepto,fecha,proyecto')
+    .in('tipo',['ingreso','alquiler','aporte']);
   if(!movs||movs.length===0)return;
   var marcados=0;
   for(var i=0;i<pendientes.length;i++){
     var c=pendientes[i];
     var montoC=Number(c.monto||0);
-    // Buscar movimiento en caja que matchee monto y tenga algo del concepto/proyecto
+    var fechaPactada=c.fecha_pactada?new Date(c.fecha_pactada+'T12:00:00'):null;
+    if(!fechaPactada)continue;
+    // Match estricto: mismo monto + fecha del movimiento dentro de ±15 días de vencimiento
     var match=movs.find(function(m){
       if(Number(m.monto)!==montoC)return false;
-      var mc=(m.concepto||'').toLowerCase();
-      var cc=(c.concepto||'').toLowerCase();
-      var mp=(m.proyecto||'').toLowerCase();
-      var cp=(c.proyecto||'').toLowerCase();
-      // Match por nombre del contrato/inquilino en concepto
-      var palabrasClave=cc.split(' — ')[0].split(' ').filter(function(w){return w.length>3;});
-      var matchConcepto=palabrasClave.some(function(w){return mc.includes(w);});
-      var matchProyecto=cp&&mp&&(mp.includes(cp.split(' ')[0].toLowerCase())||cp.includes(mp.split(' ')[0].toLowerCase()));
-      return matchConcepto||matchProyecto;
+      var fechaMov=new Date(m.fecha+'T12:00:00');
+      var diffDias=Math.abs(fechaMov-fechaPactada)/(1000*60*60*24);
+      return diffDias<=15;
     });
     if(match){
       await sb.from('cobros').update({
         cobrado:true, fecha_cobro:match.fecha, confirmado_por:'auto-sync'
       }).eq('id',c.id);
-      // Remover el mov usado para no matchear doble
       movs=movs.filter(function(x){return x!==match;});
       marcados++;
     }
