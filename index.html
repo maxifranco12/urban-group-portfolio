@@ -1191,63 +1191,48 @@ async function borrarMovCaja(id,concepto,monto){
 }
 
 async function sincronizarCobrosPendientes(){
-  // 1. Restaurar cuotas marcadas por error con auto-sync que no tienen movimiento real
-  //    (cuotas 4/12 y 5/12 de Fashion fueron borradas por error)
-  var {data:autoSynced}=await sb.from('cobros').select('id,monto,concepto,proyecto,fecha_pactada,fecha_cobro')
-    .eq('confirmado_por','auto-sync').eq('cobrado',true);
-  if(autoSynced&&autoSynced.length>0){
-    var {data:movsCaja}=await sb.from('caja_movimientos').select('monto,fecha,concepto');
-    movsCaja=movsCaja||[];
-    for(var r=0;r<autoSynced.length;r++){
-      var cobro=autoSynced[r];
-      // Verificar que realmente exista un movimiento de caja en la misma fecha ±3 días
-      var fechaCobro=cobro.fecha_cobro?new Date(cobro.fecha_cobro+'T12:00:00'):null;
-      var tieneMovReal=movsCaja.some(function(m){
-        if(Number(m.monto)!==Number(cobro.monto))return false;
-        if(!fechaCobro)return false;
-        var fechaMov=new Date(m.fecha+'T12:00:00');
-        var diff=Math.abs(fechaMov-fechaCobro)/(1000*60*60*24);
-        return diff<=3;
-      });
-      if(!tieneMovReal){
-        // No hay movimiento real que respalde este cobro — restaurar como pendiente
-        await sb.from('cobros').update({cobrado:false,fecha_cobro:null,confirmado_por:null}).eq('id',cobro.id);
-        console.log('Restaurada cuota: '+cobro.concepto);
+  // Reparar cuotas de Fashion Collection: verificar que las 12 cuotas existan
+  var {data:fashionCtr}=await sb.from('contratos').select('id').eq('nombre','Fashion Collection').eq('activo',true);
+  if(fashionCtr&&fashionCtr.length>0){
+    var ctrId=fashionCtr[0].id;
+    var {data:fashionCobros}=await sb.from('cobros').select('id,concepto,cobrado,fecha_pactada').eq('contrato_id',ctrId);
+    fashionCobros=fashionCobros||[];
+    // Verificar cuotas 1 a 12
+    for(var q=1;q<=12;q++){
+      var existe=fashionCobros.find(function(c){return c.concepto&&c.concepto.includes('Cuota '+q+'/12');});
+      if(!existe){
+        // Cuota faltante — recrear
+        var fechaCuota=new Date('2026-03-15T12:00:00');
+        fechaCuota.setMonth(fechaCuota.getMonth()+q-1);
+        var fechaStr=fechaCuota.toISOString().split('T')[0];
+        var yaCobrada=(q<=2); // cuotas 1 y 2 (marzo y abril) ya cobradas
+        await sb.from('cobros').insert({
+          concepto:'Alquiler Fashion Collection — Cuota '+q+'/12',
+          proyecto:'Terrada 622-624 — UF2',
+          origen:'Fashion Collection',
+          tipo:'alquiler',
+          monto:4300,
+          fecha_pactada:fechaStr,
+          cobrado:yaCobrada,
+          fecha_cobro:yaCobrada?fechaStr:null,
+          confirmado_por:yaCobrada?'Maxi Franco':null,
+          contrato_id:ctrId
+        });
+        console.log('Cuota '+q+'/12 de Fashion recreada'+(yaCobrada?' (cobrada)':' (pendiente)'));
       }
     }
   }
-  // 2. Sincronizar: solo matchear cobros con movimientos de caja si coinciden
-  //    monto EXACTO + fecha del movimiento dentro de ±5 días de la fecha pactada del cobro
-  var {data:pendientes}=await sb.from('cobros').select('id,monto,concepto,proyecto,fecha_pactada').eq('cobrado',false);
-  if(!pendientes||pendientes.length===0)return;
-  var {data:movs}=await sb.from('caja_movimientos').select('monto,concepto,fecha,proyecto')
-    .in('tipo',['ingreso','alquiler','aporte']);
-  if(!movs||movs.length===0)return;
-  var marcados=0;
-  for(var i=0;i<pendientes.length;i++){
-    var c=pendientes[i];
-    var montoC=Number(c.monto||0);
-    var fechaPactada=c.fecha_pactada?new Date(c.fecha_pactada+'T12:00:00'):null;
-    if(!fechaPactada)continue;
-    // Match estricto: mismo monto + fecha del movimiento dentro de ±15 días de vencimiento
-    var match=movs.find(function(m){
-      if(Number(m.monto)!==montoC)return false;
-      var fechaMov=new Date(m.fecha+'T12:00:00');
-      var diffDias=Math.abs(fechaMov-fechaPactada)/(1000*60*60*24);
-      return diffDias<=15;
-    });
-    if(match){
-      await sb.from('cobros').update({
-        cobrado:true, fecha_cobro:match.fecha, confirmado_por:'auto-sync'
-      }).eq('id',c.id);
-      movs=movs.filter(function(x){return x!==match;});
-      marcados++;
+  // Marcar como cobrada la cuota 3/12 si tiene movimiento en caja
+  var {data:cuota3}=await sb.from('cobros').select('id,cobrado')
+    .eq('cobrado',false).ilike('concepto','%Fashion%Cuota 3/12%');
+  if(cuota3&&cuota3.length>0){
+    var {data:movMayo}=await sb.from('caja_movimientos').select('fecha')
+      .eq('monto',4300).gte('fecha','2026-05-01').lte('fecha','2026-05-31');
+    if(movMayo&&movMayo.length>0){
+      await sb.from('cobros').update({cobrado:true,fecha_cobro:movMayo[0].fecha,confirmado_por:'auto-sync'}).eq('id',cuota3[0].id);
     }
   }
-  if(marcados>0){
-    console.log('Sincronización: '+marcados+' cobro(s) marcado(s) como cobrado(s)');
-    await cargarCobros();
-  }
+  await cargarCobros();
 }
 
 async function migrarFashionSiNoExiste(){
