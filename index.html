@@ -678,6 +678,7 @@ async function login(nombre,ini,rol){
   rDT();rc();
   await migrarFashionSiNoExiste();
   await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
+  await sincronizarCobrosPendientes();
   actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
   actualizarInvertidoReal().catch(e=>console.log("invertido:",e));
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
@@ -1126,17 +1127,41 @@ async function guardarMovimiento(){
   const tipo=$$('IT').textContent.includes('egreso')?'egreso':'ingreso';
   const monto=Number($$('mov-monto').value)*(tipo==='egreso'?-1:1);
   if(!monto){toast('Ingresá el monto','err');return;}
+  const concepto=$$('mov-concepto').value||tipo;
+  const proyecto=$$('mov-proyecto').value;
+  const fecha=$$('mov-fecha').value;
   const {error} = await sb.from('caja_movimientos').insert({
-    fecha:$$('mov-fecha').value,
-    concepto:$$('mov-concepto').value||tipo,
-    tipo,monto,
-    proyecto:$$('mov-proyecto').value,
-    confirmado_por:USUARIO
+    fecha:fecha, concepto:concepto, tipo, monto,
+    proyecto:proyecto, confirmado_por:USUARIO
   });
   if(error){toast('Error: '+error.message,'err');return;}
+  // Auto-match: si es ingreso, buscar cobro pendiente que coincida en monto y proyecto
+  if(tipo==='ingreso'&&monto>0){
+    var {data:pendientes}=await sb.from('cobros').select('id,monto,concepto,proyecto')
+      .eq('cobrado',false).eq('monto',monto);
+    if(pendientes&&pendientes.length>0){
+      // Buscar match por proyecto o concepto
+      var match=pendientes.find(function(c){
+        var cProy=(c.proyecto||'').toLowerCase();
+        var mProy=(proyecto||'').toLowerCase();
+        var cConc=(c.concepto||'').toLowerCase();
+        var mConc=(concepto||'').toLowerCase();
+        return (cProy&&mProy&&(cProy.includes(mProy.split(' ')[0])||mProy.includes(cProy.split(' ')[0])))
+          ||(cConc&&mConc&&(mConc.includes(c.concepto.split(' — ')[0].toLowerCase().split(' ').pop())));
+      });
+      if(!match)match=pendientes[0]; // si hay un solo pendiente del mismo monto, usarlo
+      if(match&&pendientes.length===1){
+        await sb.from('cobros').update({
+          cobrado:true, fecha_cobro:fecha, confirmado_por:USUARIO
+        }).eq('id',match.id);
+        toast('Cobro pendiente vinculado automáticamente ✓','ok2');
+      }
+    }
+  }
   cm('m-ingreso');
   toast('Movimiento guardado ✓','ok2');
   cargarSaldo();
+  await cargarCobros();
   if($$('p-caja').classList.contains('active'))cargarMovimientos();
 }
 
@@ -1163,6 +1188,45 @@ async function borrarMovCaja(id,concepto,monto){
   if(error){toast('Error: '+error.message,'err');return;}
   toast('Movimiento eliminado ✓','ok2');
   cargarSaldo();cargarMovimientos();
+}
+
+async function sincronizarCobrosPendientes(){
+  // Buscar cobros pendientes
+  var {data:pendientes}=await sb.from('cobros').select('id,monto,concepto,proyecto,fecha_pactada').eq('cobrado',false);
+  if(!pendientes||pendientes.length===0)return;
+  // Buscar movimientos de caja tipo ingreso/alquiler
+  var {data:movs}=await sb.from('caja_movimientos').select('monto,concepto,fecha,proyecto').in('tipo',['ingreso','alquiler','aporte']);
+  if(!movs||movs.length===0)return;
+  var marcados=0;
+  for(var i=0;i<pendientes.length;i++){
+    var c=pendientes[i];
+    var montoC=Number(c.monto||0);
+    // Buscar movimiento en caja que matchee monto y tenga algo del concepto/proyecto
+    var match=movs.find(function(m){
+      if(Number(m.monto)!==montoC)return false;
+      var mc=(m.concepto||'').toLowerCase();
+      var cc=(c.concepto||'').toLowerCase();
+      var mp=(m.proyecto||'').toLowerCase();
+      var cp=(c.proyecto||'').toLowerCase();
+      // Match por nombre del contrato/inquilino en concepto
+      var palabrasClave=cc.split(' — ')[0].split(' ').filter(function(w){return w.length>3;});
+      var matchConcepto=palabrasClave.some(function(w){return mc.includes(w);});
+      var matchProyecto=cp&&mp&&(mp.includes(cp.split(' ')[0].toLowerCase())||cp.includes(mp.split(' ')[0].toLowerCase()));
+      return matchConcepto||matchProyecto;
+    });
+    if(match){
+      await sb.from('cobros').update({
+        cobrado:true, fecha_cobro:match.fecha, confirmado_por:'auto-sync'
+      }).eq('id',c.id);
+      // Remover el mov usado para no matchear doble
+      movs=movs.filter(function(x){return x!==match;});
+      marcados++;
+    }
+  }
+  if(marcados>0){
+    console.log('Sincronización: '+marcados+' cobro(s) marcado(s) como cobrado(s)');
+    await cargarCobros();
+  }
 }
 
 async function migrarFashionSiNoExiste(){
