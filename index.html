@@ -1857,7 +1857,8 @@ async function VF(id){
     var tbodyHtml='';
     ['Local 1','Local 2','Local 3','Local 4'].forEach(function(loc){
       var bold=estadoBase[loc]!=='Sin vender'?'<b>'+loc+'</b>':loc;
-      tbodyHtml+='<tr><td>'+bold+'</td><td>'+lotes[loc]+'</td><td><span class="badge '+badgeBase[loc]+'">'+estadoBase[loc]+'</span></td></tr>';
+      var extraStyle=loc==='Local 3'?'border-top:3px solid var(--text);':'';
+      tbodyHtml+='<tr style="'+extraStyle+'"><td>'+bold+'</td><td>'+lotes[loc]+'</td><td><span class="badge '+badgeBase[loc]+'">'+estadoBase[loc]+'</span></td></tr>';
     });
     var tbody=document.getElementById('cuenca-locales-tbody');
     if(tbody)tbody.innerHTML=tbodyHtml;
@@ -1872,10 +1873,10 @@ async function VF(id){
   // Contratos adheridos a Cuenca
   var _contratos=await cargarContratos("Cuenca");
   if(_contratos.length>0){
-    var _chtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_contratos.length+' contrato'+ (_contratos.length>1?'s':'')+'</span></div>';
+    var _chtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_contratos.length+' contrato'+ (_contratos.length>1?'s':'')+'</span></div><div style="max-height:500px;overflow-y:auto;">';
     _chtml+=_contratos.map(function(c){
       return renderContratoCard(c);
-    }).join('')+'</div>';
+    }).join('')+'</div></div>';
     document.getElementById("PF").innerHTML+=_chtml;
     // Cargar adjuntos de cada contrato
     _contratos.forEach(function(c){renderAdjuntosEnFicha(c.id);});
@@ -2000,8 +2001,8 @@ _fichaProyectoNombre=p.n;
   }
   // Card de contratos adheridos con editar/borrar
   if(_ctrs.length>0){
-    var _chtml2='<div class="card"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_ctrs.length+'</span></div>';
-    _chtml2+=_ctrs.map(function(c){ return renderContratoCard(c); }).join('')+'</div>';
+    var _chtml2='<div class="card"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_ctrs.length+'</span></div><div style="max-height:500px;overflow-y:auto;">';
+    _chtml2+=_ctrs.map(function(c){ return renderContratoCard(c); }).join('')+'</div></div>';
     $$('PF').innerHTML+=_chtml2;
     // Cargar adjuntos de cada contrato
     _ctrs.forEach(function(c){renderAdjuntosEnFicha(c.id);});
