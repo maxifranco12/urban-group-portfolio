@@ -1290,6 +1290,7 @@ function renderAdjuntosPreview(){
         '<option'+(a.categoria==='Documentación'?' selected':'')+'>Documentación</option>'+
         '<option'+(a.categoria==='Comprobante'?' selected':'')+'>Comprobante</option>'+
         '<option'+(a.categoria==='Plano'?' selected':'')+'>Plano</option>'+
+        '<option'+(a.categoria==='Pagarés'?' selected':'')+'>Pagarés</option>'+
       '</select>'+
       '<button onclick="_adjuntosPendientes.splice('+idx+',1);renderAdjuntosPreview()" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--red);">✕</button>'+
     '</div>';
@@ -1377,7 +1378,7 @@ async function renderAdjuntosEnFicha(contratoId){
     el.innerHTML='<div style="padding:10px 16px;font-size:11px;color:var(--muted);">Sin archivos adjuntos</div>';
     return;
   }
-  var cats=['Contrato','Documentación','Comprobante','Plano'];
+  var cats=['Contrato','Documentación','Comprobante','Plano','Pagarés'];
   var html='';
   cats.forEach(function(cat){
     var items=adjuntos.filter(function(a){return a.categoria===cat;});
