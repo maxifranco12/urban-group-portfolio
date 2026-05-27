@@ -1270,7 +1270,7 @@ function agregarArchivosContrato(files){
     if(!permitidos.includes(f.type)){toast('Archivo no soportado: '+f.name+'. Solo PDF, JPG, PNG.','err');continue;}
     if(f.size>maxSize){toast(f.name+' supera 10MB','err');continue;}
     if(_adjuntosPendientes.length>=20){toast('Máximo 20 archivos por contrato','err');break;}
-    _adjuntosPendientes.push({file:f,categoria:'Contrato'});
+    _adjuntosPendientes.push({file:f,categoria:'Contrato de Locación'});
   }
   renderAdjuntosPreview();
 }
@@ -1286,7 +1286,8 @@ function renderAdjuntosPreview(){
       '<span style="font-size:16px;">'+(esPdf?'📄':'🖼️')+'</span>'+
       '<div style="flex:1;min-width:0;"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+a.file.name+'</div><div style="font-size:10px;color:var(--muted);">'+tamano+'</div></div>'+
       '<select style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;" onchange="_adjuntosPendientes['+idx+'].categoria=this.value">'+
-        '<option'+(a.categoria==='Contrato'?' selected':'')+'>Contrato</option>'+
+        '<option'+(a.categoria==='Contrato de Locación'||a.categoria==='Contrato'?' selected':'')+'>Contrato de Locación</option>'+
+        '<option'+(a.categoria==='Contrato Mutuo Acuerdo'?' selected':'')+'>Contrato Mutuo Acuerdo</option>'+
         '<option'+(a.categoria==='Documentación'?' selected':'')+'>Documentación</option>'+
         '<option'+(a.categoria==='Comprobante'?' selected':'')+'>Comprobante</option>'+
         '<option'+(a.categoria==='Plano'?' selected':'')+'>Plano</option>'+
@@ -1378,7 +1379,7 @@ async function renderAdjuntosEnFicha(contratoId){
     el.innerHTML='<div style="padding:10px 16px;font-size:11px;color:var(--muted);">Sin archivos adjuntos</div>';
     return;
   }
-  var cats=['Contrato','Documentación','Comprobante','Plano','Pagarés'];
+  var cats=['Contrato de Locación','Contrato Mutuo Acuerdo','Documentación','Comprobante','Plano','Pagarés'];
   var html='';
   cats.forEach(function(cat){
     var items=adjuntos.filter(function(a){return a.categoria===cat;});
@@ -1415,7 +1416,7 @@ function abrirAdjuntarExistente(contratoId){
       var f=input.files[i];
       if(!permitidos.includes(f.type)){toast('No soportado: '+f.name+' (tipo: '+f.type+')','err');continue;}
       if(f.size>10*1024*1024){toast(f.name+' supera 10MB','err');continue;}
-      archivos.push({file:f,categoria:'Contrato'});
+      archivos.push({file:f,categoria:'Contrato de Locación'});
     }
     if(!archivos.length){toast('No se seleccionaron archivos válidos','err');return;}
     _adjuntosPendientes=archivos;
