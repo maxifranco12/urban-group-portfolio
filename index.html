@@ -1263,11 +1263,13 @@ async function sincronizarCobrosPendientes(){
 var _adjuntosPendientes=[]; // archivos en cola para subir con el contrato
 
 function agregarArchivosContrato(files){
-  var permitidos=['application/pdf','image/jpeg','image/jpg','image/png'];
+  var permitidos=['application/pdf','image/jpeg','image/jpg','image/png','application/octet-stream'];
+  var extPermitidas=['pdf','jpg','jpeg','png'];
   var maxSize=10*1024*1024; // 10MB
   for(var i=0;i<files.length;i++){
     var f=files[i];
-    if(!permitidos.includes(f.type)){toast('Archivo no soportado: '+f.name+'. Solo PDF, JPG, PNG.','err');continue;}
+    var ext=(f.name.split('.').pop()||'').toLowerCase();
+    if(!permitidos.includes(f.type)&&!extPermitidas.includes(ext)){toast('Archivo no soportado: '+f.name+'. Solo PDF, JPG, PNG.','err');continue;}
     if(f.size>maxSize){toast(f.name+' supera 10MB','err');continue;}
     if(_adjuntosPendientes.length>=20){toast('Máximo 20 archivos por contrato','err');break;}
     _adjuntosPendientes.push({file:f,categoria:'Contrato de Locación'});
@@ -1411,10 +1413,12 @@ function abrirAdjuntarExistente(contratoId){
   input.type='file';input.multiple=true;input.accept='.pdf,.jpg,.jpeg,.png';
   input.onchange=async function(){
     var archivos=[];
-    var permitidos=['application/pdf','image/jpeg','image/jpg','image/png'];
+    var permitidos=['application/pdf','image/jpeg','image/jpg','image/png','application/octet-stream'];
+    var extPermitidas=['pdf','jpg','jpeg','png'];
     for(var i=0;i<input.files.length;i++){
       var f=input.files[i];
-      if(!permitidos.includes(f.type)){toast('No soportado: '+f.name+' (tipo: '+f.type+')','err');continue;}
+      var ext=(f.name.split('.').pop()||'').toLowerCase();
+      if(!permitidos.includes(f.type)&&!extPermitidas.includes(ext)){toast('No soportado: '+f.name+' (tipo: '+f.type+')','err');continue;}
       if(f.size>10*1024*1024){toast(f.name+' supera 10MB','err');continue;}
       archivos.push({file:f,categoria:'Contrato de Locación'});
     }
