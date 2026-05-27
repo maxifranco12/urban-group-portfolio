@@ -477,7 +477,29 @@ tr:hover td{background:var(--s2);}
     <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;font-weight:500;"><span>Total contrato</span><span class="mono" id="ctr-total-display">U$D 0</span></div>
   </div>
   <div class="fg" style="margin-top:10px;"><label class="fl">Notas</label><input class="fi" type="text" id="ctr-notas" placeholder="Detalles del contrato"></div>
+  <div style="margin-top:12px;padding:12px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);">
+    <div style="font-size:12px;font-weight:500;margin-bottom:8px;">📎 Archivos adjuntos</div>
+    <div id="ctr-drop-zone" style="border:2px dashed var(--border);border-radius:var(--r);padding:16px;text-align:center;cursor:pointer;transition:border-color .2s;" onclick="$$('ctr-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--blue)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';agregarArchivosContrato(event.dataTransfer.files)">
+      <div style="font-size:20px;">📄</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">Arrastrá archivos acá o hacé click para seleccionar</div>
+      <div style="font-size:10px;color:var(--hint);margin-top:2px;">PDF, JPG, PNG · Máx 10 MB por archivo</div>
+    </div>
+    <input type="file" id="ctr-file-input" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="agregarArchivosContrato(this.files)">
+    <div id="ctr-adjuntos-preview" style="margin-top:8px;"></div>
+  </div>
   <div class="ma"><button class="btn" onclick="cm('m-contrato')">Cancelar</button><button class="btn btnp" id="btn-guardar-contrato" onclick="guardarContrato()">Crear contrato</button></div>
+</div></div>
+
+<!-- MODAL PREVISUALIZACION ADJUNTO -->
+<div class="ov" id="m-preview-adjunto" onclick="if(event.target===this)cm('m-preview-adjunto')"><div class="modal" style="max-width:90vw;max-height:90vh;padding:0;overflow:hidden;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+    <span style="font-weight:500;font-size:13px;" id="preview-nombre">Archivo</span>
+    <div style="display:flex;gap:6px;">
+      <a id="preview-link" href="#" target="_blank" class="btn btns" style="font-size:10px;text-decoration:none;">Abrir en pestaña nueva</a>
+      <button class="btn btns" onclick="cm('m-preview-adjunto')" style="font-size:10px;">✕ Cerrar</button>
+    </div>
+  </div>
+  <div id="preview-contenido" style="display:flex;align-items:center;justify-content:center;max-height:80vh;overflow:auto;background:#f0f0f0;"></div>
 </div></div>
 
 <script>
@@ -1235,6 +1257,165 @@ async function sincronizarCobrosPendientes(){
   await cargarCobros();
 }
 
+// ═══════════════════════════════════════════════════
+// ADJUNTOS DE CONTRATOS
+// ═══════════════════════════════════════════════════
+var _adjuntosPendientes=[]; // archivos en cola para subir con el contrato
+
+function agregarArchivosContrato(files){
+  var permitidos=['application/pdf','image/jpeg','image/jpg','image/png'];
+  var maxSize=10*1024*1024; // 10MB
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
+    if(!permitidos.includes(f.type)){toast('Archivo no soportado: '+f.name+'. Solo PDF, JPG, PNG.','err');continue;}
+    if(f.size>maxSize){toast(f.name+' supera 10MB','err');continue;}
+    if(_adjuntosPendientes.length>=20){toast('Máximo 20 archivos por contrato','err');break;}
+    _adjuntosPendientes.push({file:f,categoria:'Contrato'});
+  }
+  renderAdjuntosPreview();
+}
+
+function renderAdjuntosPreview(){
+  var el=$$('ctr-adjuntos-preview');
+  if(!_adjuntosPendientes.length){el.innerHTML='';return;}
+  el.innerHTML=_adjuntosPendientes.map(function(a,idx){
+    var esPdf=a.file.type==='application/pdf';
+    var tamano=(a.file.size/1024).toFixed(0)+'KB';
+    if(a.file.size>1024*1024)tamano=(a.file.size/1024/1024).toFixed(1)+'MB';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">'+
+      '<span style="font-size:16px;">'+(esPdf?'📄':'🖼️')+'</span>'+
+      '<div style="flex:1;min-width:0;"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+a.file.name+'</div><div style="font-size:10px;color:var(--muted);">'+tamano+'</div></div>'+
+      '<select style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;" onchange="_adjuntosPendientes['+idx+'].categoria=this.value">'+
+        '<option'+(a.categoria==='Contrato'?' selected':'')+'>Contrato</option>'+
+        '<option'+(a.categoria==='Documentación'?' selected':'')+'>Documentación</option>'+
+        '<option'+(a.categoria==='Comprobante'?' selected':'')+'>Comprobante</option>'+
+        '<option'+(a.categoria==='Plano'?' selected':'')+'>Plano</option>'+
+      '</select>'+
+      '<button onclick="_adjuntosPendientes.splice('+idx+',1);renderAdjuntosPreview()" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--red);">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+async function subirAdjuntosContrato(contratoId){
+  if(!_adjuntosPendientes.length)return;
+  for(var i=0;i<_adjuntosPendientes.length;i++){
+    var a=_adjuntosPendientes[i];
+    var ext=a.file.name.split('.').pop().toLowerCase();
+    var rutaStorage=contratoId+'/'+Date.now()+'_'+i+'.'+ext;
+    // Subir a Storage
+    var {error:upErr}=await sb.storage.from('contratos-adjuntos').upload(rutaStorage,a.file,{contentType:a.file.type});
+    if(upErr){console.error('Error subiendo '+a.file.name+':',upErr);toast('Error subiendo '+a.file.name,'err');continue;}
+    // Guardar metadata en tabla
+    await sb.from('contrato_adjuntos').insert({
+      contrato_id:contratoId,
+      nombre:a.file.name,
+      categoria:a.categoria,
+      tipo_archivo:a.file.type,
+      tamano:a.file.size,
+      ruta_storage:rutaStorage
+    });
+  }
+  _adjuntosPendientes=[];
+  renderAdjuntosPreview();
+}
+
+async function cargarAdjuntosContrato(contratoId){
+  var {data}=await sb.from('contrato_adjuntos').select('*').eq('contrato_id',contratoId).order('created_at');
+  return data||[];
+}
+
+function obtenerUrlAdjunto(ruta){
+  var {data}=sb.storage.from('contratos-adjuntos').getPublicUrl(ruta);
+  return data?data.publicUrl:'';
+}
+
+async function eliminarAdjunto(id,ruta,contratoId){
+  if(!confirm('¿Eliminar este archivo?'))return;
+  await sb.storage.from('contratos-adjuntos').remove([ruta]);
+  await sb.from('contrato_adjuntos').delete().eq('id',id);
+  toast('Archivo eliminado ✓','ok2');
+  // Recargar lista si estamos en la ficha
+  if(contratoId)renderAdjuntosEnFicha(contratoId);
+}
+
+async function cambiarCategoriaAdjunto(id,nuevaCat,contratoId){
+  await sb.from('contrato_adjuntos').update({categoria:nuevaCat}).eq('id',id);
+  toast('Categoría actualizada ✓','ok2');
+  if(contratoId)renderAdjuntosEnFicha(contratoId);
+}
+
+function previsualizarAdjunto(ruta,nombre,tipo){
+  var url=obtenerUrlAdjunto(ruta);
+  if(tipo==='application/pdf'){
+    window.open(url,'_blank');
+    return;
+  }
+  // Imagen: abrir en modal
+  $$('preview-nombre').textContent=nombre;
+  $$('preview-link').href=url;
+  $$('preview-contenido').innerHTML='<img src="'+url+'" style="max-width:100%;max-height:75vh;object-fit:contain;">';
+  $$('m-preview-adjunto').classList.add('open');
+}
+
+async function renderAdjuntosEnFicha(contratoId){
+  var adjuntos=await cargarAdjuntosContrato(contratoId);
+  var el=document.getElementById('adjuntos-ctr-'+contratoId);
+  if(!el)return;
+  if(!adjuntos.length){
+    el.innerHTML='<div style="padding:10px 16px;font-size:11px;color:var(--muted);">Sin archivos adjuntos</div>';
+    return;
+  }
+  var cats=['Contrato','Documentación','Comprobante','Plano'];
+  var html='';
+  cats.forEach(function(cat){
+    var items=adjuntos.filter(function(a){return a.categoria===cat;});
+    if(!items.length)return;
+    html+='<div style="padding:4px 16px 2px;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px;">'+cat+' ('+items.length+')</div>';
+    items.forEach(function(a){
+      var esPdf=a.tipo_archivo==='application/pdf';
+      var tamano=(a.tamano/1024).toFixed(0)+'KB';
+      if(a.tamano>1024*1024)tamano=(a.tamano/1024/1024).toFixed(1)+'MB';
+      var fecha=a.created_at?new Date(a.created_at).toLocaleDateString('es-AR'):'';
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid var(--border);font-size:12px;">'+
+        '<span style="font-size:15px;cursor:pointer;" onclick="previsualizarAdjunto(\''+a.ruta_storage.replace(/'/g,"\\'")+'\',\''+a.nombre.replace(/'/g,"\\'")+'\',\''+a.tipo_archivo+'\')">'+(esPdf?'📄':'🖼️')+'</span>'+
+        '<div style="flex:1;min-width:0;cursor:pointer;" onclick="previsualizarAdjunto(\''+a.ruta_storage.replace(/'/g,"\\'")+'\',\''+a.nombre.replace(/'/g,"\\'")+'\',\''+a.tipo_archivo+'\')">'+
+          '<div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+a.nombre+'</div>'+
+          '<div style="font-size:10px;color:var(--muted);">'+tamano+' · '+fecha+'</div>'+
+        '</div>'+
+        '<select style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;" onchange="cambiarCategoriaAdjunto(\''+a.id+'\',this.value,\''+contratoId+'\')">'+
+          cats.map(function(c2){return '<option'+(a.categoria===c2?' selected':'')+'>'+c2+'</option>';}).join('')+
+        '</select>'+
+        '<button onclick="eliminarAdjunto(\''+a.id+'\',\''+a.ruta_storage.replace(/'/g,"\\'")+'\',\''+contratoId+'\')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--red);" title="Eliminar">🗑</button>'+
+      '</div>';
+    });
+  });
+  el.innerHTML=html;
+}
+
+function abrirAdjuntarExistente(contratoId){
+  window._adjuntarContratoId=contratoId;
+  var input=document.createElement('input');
+  input.type='file';input.multiple=true;input.accept='.pdf,.jpg,.jpeg,.png';
+  input.onchange=async function(){
+    var archivos=[];
+    var permitidos=['application/pdf','image/jpeg','image/jpg','image/png'];
+    for(var i=0;i<input.files.length;i++){
+      var f=input.files[i];
+      if(!permitidos.includes(f.type)){toast('No soportado: '+f.name,'err');continue;}
+      if(f.size>10*1024*1024){toast(f.name+' supera 10MB','err');continue;}
+      archivos.push({file:f,categoria:'Contrato'});
+    }
+    if(!archivos.length)return;
+    // Subir directamente
+    _adjuntosPendientes=archivos;
+    toast('Subiendo '+archivos.length+' archivo(s)…','ok2');
+    await subirAdjuntosContrato(contratoId);
+    toast('Archivos subidos ✓','ok2');
+    renderAdjuntosEnFicha(contratoId);
+  };
+  input.click();
+}
+
 async function migrarFashionSiNoExiste(){
   // Verificar si ya existe con datos correctos (12 cuotas, inicio 2026-03-15)
   var {data}=await sb.from('contratos').select('*').eq('nombre','Fashion Collection').eq('activo',true);
@@ -1371,6 +1552,14 @@ function renderContratoCard(c){
   }
   if(c.fecha_inicio)h+='<div style="font-size:11px;color:var(--muted);margin-top:6px;">'+fmtFecha(c.fecha_inicio)+(c.fecha_fin?' → '+fmtFecha(c.fecha_fin):'')+'</div>';
   if(c.notas)h+='<div style="font-size:11px;color:var(--hint);margin-top:2px;">'+c.notas+'</div>';
+  // Sección de adjuntos
+  h+='<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+    '<span style="font-size:11px;font-weight:500;color:var(--muted);">📎 Adjuntos</span>'+
+    '<button class="btn btns" onclick="abrirAdjuntarExistente(\''+c.id+'\')" style="font-size:9px;padding:2px 8px;">+ Adjuntar</button>'+
+    '</div>'+
+    '<div id="adjuntos-ctr-'+c.id+'"><div style="font-size:10px;color:var(--hint);padding:4px 0;">Cargando…</div></div>'+
+    '</div>';
   h+='</div>';
   return h;
 }
@@ -1410,6 +1599,8 @@ function resetModalContrato(){
   ['ctr-nombre','ctr-notas','ctr-inicio','ctr-fin','ctr-a1-monto','ctr-a2-monto','ctr-a3-monto'].forEach(function(id){$$(id).value='';});
   ['ctr-a1-cuotas','ctr-a2-cuotas','ctr-a3-cuotas'].forEach(function(id){$$(id).value='12';});
   calcTotalContrato();
+  _adjuntosPendientes=[];
+  renderAdjuntosPreview();
 }
 
 async function guardarContrato(){
@@ -1452,8 +1643,11 @@ async function guardarContrato(){
       if(error){toast('Error: '+error.message,'err');return;}
       var ctrId=insData[0].id;
       await generarCobrosContrato(ctrId,contratoData);
+      if(_adjuntosPendientes.length>0)await subirAdjuntosContrato(ctrId);
       toast('Contrato "'+nombre+'" creado ✓','ok2');
     }
+    // Si es edición y hay adjuntos nuevos, subirlos
+    if(editId&&_adjuntosPendientes.length>0)await subirAdjuntosContrato(editId);
     cm('m-contrato');
     resetModalContrato();
     await cargarCobros();
@@ -1663,6 +1857,8 @@ async function VF(id){
       return renderContratoCard(c);
     }).join('')+'</div>';
     document.getElementById("PF").innerHTML+=_chtml;
+    // Cargar adjuntos de cada contrato
+    _contratos.forEach(function(c){renderAdjuntosEnFicha(c.id);});
   }
   }catch(e){console.error('Error cargando ficha Cuenca:',e);toast('Error cargando ficha: '+e.message,'err');}
   return;
@@ -1787,6 +1983,8 @@ _fichaProyectoNombre=p.n;
     var _chtml2='<div class="card"><div class="ch"><div class="ct">Contratos adheridos</div><span class="badge bb" style="font-size:11px;">'+_ctrs.length+'</span></div>';
     _chtml2+=_ctrs.map(function(c){ return renderContratoCard(c); }).join('')+'</div>';
     $$('PF').innerHTML+=_chtml2;
+    // Cargar adjuntos de cada contrato
+    _ctrs.forEach(function(c){renderAdjuntosEnFicha(c.id);});
   }
   var _pnombre=p?p.n:"";
   setTimeout(function(){
