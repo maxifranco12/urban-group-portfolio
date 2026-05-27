@@ -1298,15 +1298,20 @@ function renderAdjuntosPreview(){
 
 async function subirAdjuntosContrato(contratoId){
   if(!_adjuntosPendientes.length)return;
+  var subidos=0;
   for(var i=0;i<_adjuntosPendientes.length;i++){
     var a=_adjuntosPendientes[i];
     var ext=a.file.name.split('.').pop().toLowerCase();
     var rutaStorage=contratoId+'/'+Date.now()+'_'+i+'.'+ext;
     // Subir a Storage
-    var {error:upErr}=await sb.storage.from('contratos-adjuntos').upload(rutaStorage,a.file,{contentType:a.file.type});
-    if(upErr){console.error('Error subiendo '+a.file.name+':',upErr);toast('Error subiendo '+a.file.name,'err');continue;}
+    var {error:upErr}=await sb.storage.from('contratos-adjuntos').upload(rutaStorage,a.file,{contentType:a.file.type,upsert:true});
+    if(upErr){
+      console.error('Error subiendo '+a.file.name+':',upErr);
+      toast('Error subiendo '+a.file.name+': '+(upErr.message||upErr.error||JSON.stringify(upErr)),'err');
+      continue;
+    }
     // Guardar metadata en tabla
-    await sb.from('contrato_adjuntos').insert({
+    var {error:dbErr}=await sb.from('contrato_adjuntos').insert({
       contrato_id:contratoId,
       nombre:a.file.name,
       categoria:a.categoria,
@@ -1314,9 +1319,16 @@ async function subirAdjuntosContrato(contratoId){
       tamano:a.file.size,
       ruta_storage:rutaStorage
     });
+    if(dbErr){
+      console.error('Error guardando metadata:',dbErr);
+      toast('Error guardando '+a.file.name+': '+dbErr.message,'err');
+      continue;
+    }
+    subidos++;
   }
   _adjuntosPendientes=[];
   renderAdjuntosPreview();
+  return subidos;
 }
 
 async function cargarAdjuntosContrato(contratoId){
@@ -1393,7 +1405,6 @@ async function renderAdjuntosEnFicha(contratoId){
 }
 
 function abrirAdjuntarExistente(contratoId){
-  window._adjuntarContratoId=contratoId;
   var input=document.createElement('input');
   input.type='file';input.multiple=true;input.accept='.pdf,.jpg,.jpeg,.png';
   input.onchange=async function(){
@@ -1401,17 +1412,20 @@ function abrirAdjuntarExistente(contratoId){
     var permitidos=['application/pdf','image/jpeg','image/jpg','image/png'];
     for(var i=0;i<input.files.length;i++){
       var f=input.files[i];
-      if(!permitidos.includes(f.type)){toast('No soportado: '+f.name,'err');continue;}
+      if(!permitidos.includes(f.type)){toast('No soportado: '+f.name+' (tipo: '+f.type+')','err');continue;}
       if(f.size>10*1024*1024){toast(f.name+' supera 10MB','err');continue;}
       archivos.push({file:f,categoria:'Contrato'});
     }
-    if(!archivos.length)return;
-    // Subir directamente
+    if(!archivos.length){toast('No se seleccionaron archivos válidos','err');return;}
     _adjuntosPendientes=archivos;
     toast('Subiendo '+archivos.length+' archivo(s)…','ok2');
-    await subirAdjuntosContrato(contratoId);
-    toast('Archivos subidos ✓','ok2');
-    renderAdjuntosEnFicha(contratoId);
+    var subidos=await subirAdjuntosContrato(contratoId);
+    if(subidos>0){
+      toast(subidos+' archivo(s) subido(s) ✓','ok2');
+      await renderAdjuntosEnFicha(contratoId);
+    } else {
+      toast('No se pudieron subir los archivos. Revisá la consola del navegador (F12).','err');
+    }
   };
   input.click();
 }
