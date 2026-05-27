@@ -1554,7 +1554,7 @@ function renderContratoCard(c){
   if(c.a2_monto&&c.a2_cuotas)años.push({label:'Año 2',m:c.a2_monto,q:c.a2_cuotas});
   if(c.a3_monto&&c.a3_cuotas)años.push({label:'Año 3',m:c.a3_monto,q:c.a3_cuotas});
   var cJson=JSON.stringify(c).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-  var h='<div style="padding:14px 16px;border-bottom:1px solid var(--border);">'+
+  var h='<div style="padding:14px 16px;border-bottom:2px solid var(--text);">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;">'+
     '<div><span style="font-weight:500;font-size:14px;">'+c.nombre+'</span> <span class="badge '+(c.tipo==='Alquiler'?'bb':'bg')+'" style="font-size:10px;">'+c.tipo+'</span>'+(c.local?' <span class="badge bgr" style="font-size:10px;">'+c.local+'</span>':'')+'</div>'+
     '<div style="display:flex;gap:4px;">'+
@@ -1857,8 +1857,7 @@ async function VF(id){
     var tbodyHtml='';
     ['Local 1','Local 2','Local 3','Local 4'].forEach(function(loc){
       var bold=estadoBase[loc]!=='Sin vender'?'<b>'+loc+'</b>':loc;
-      var extraStyle=loc==='Local 3'?'border-top:3px solid var(--text);':'';
-      tbodyHtml+='<tr style="'+extraStyle+'"><td>'+bold+'</td><td>'+lotes[loc]+'</td><td><span class="badge '+badgeBase[loc]+'">'+estadoBase[loc]+'</span></td></tr>';
+      tbodyHtml+='<tr><td>'+bold+'</td><td>'+lotes[loc]+'</td><td><span class="badge '+badgeBase[loc]+'">'+estadoBase[loc]+'</span></td></tr>';
     });
     var tbody=document.getElementById('cuenca-locales-tbody');
     if(tbody)tbody.innerHTML=tbodyHtml;
@@ -1867,7 +1866,7 @@ async function VF(id){
   var _gdata=_gcuenca.data||[];
   if(_gdata.length>0){
     var _gtot=_gdata.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);
-    var _ghtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Gastos incurridos</div><span class="badge br" style="font-size:11px;">- '+fmtUSD(_gtot)+'</span></div>'+_gdata.map(function(g){return '<div class="fr2" style="display:flex;align-items:center;justify-content:space-between;"><div><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);"> - '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div><button class="btn btns" style="font-size:9px;padding:2px 6px;margin-left:8px;" onclick="editarGastoCompleto(\''+g.id+'\')">✏️</button></div>';}).join('')+"</div>";
+    var _ghtml='<div class="card" style="margin-top:16px;"><div class="ch"><div class="ct">Gastos incurridos</div><span class="badge br" style="font-size:11px;">- '+fmtUSD(_gtot)+'</span></div>'+_gdata.map(function(g){return '<div class="fr2" style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);"><div style="flex:1;"><span class="fk" style="color:var(--muted);">'+g.tipo+(g.inversor?' · '+g.inversor:'')+(g.origen_fondos==='Fondos Externos'?' (externo)':'')+'</span><span class="fv" style="color:var(--red);"> – '+fmtUSD(g.monto_usd)+(g.descripcion?' · '+g.descripcion:'')+'</span></div><button class="btn btns" style="font-size:9px;padding:2px 6px;margin-left:8px;" onclick="editarGastoCompleto(\''+g.id+'\')">✏️</button></div>';}).join('')+"</div>";
     document.getElementById("PF").innerHTML+=_ghtml;
   }
   // Contratos adheridos a Cuenca
