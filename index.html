@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
 :root{
   --bg:#f7f6f3;--surface:#fff;--s2:#fafaf8;
@@ -356,11 +358,12 @@ tr:hover td{background:var(--s2);}
   <div class="mt2">📄 Pagarés detectados desde archivo</div>
   <div style="margin-bottom:12px;">
     <div class="frow">
-      <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pprev-proyecto"><option>Cuenca Obra</option><option>Terrada 622-624 — UF2</option><option>Terrada 526 — Local 2</option><option>Giribone 2363</option><option>Parque Avellaneda</option><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option><option>ARYA Sumba — D21</option></select></div>
+      <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pprev-proyecto"><option>Cuenca Obra</option><option>Cuenca — Local 3</option><option>Cuenca — Local 4</option><option>Terrada 622-624 — UF2</option><option>Terrada 526 — Local 2</option><option>Giribone 2363</option><option>Parque Avellaneda</option><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option><option>ARYA Sumba — D21</option></select></div>
       <div class="fg"><label class="fl">A nombre de</label><input class="fi" type="text" id="pprev-nombre" placeholder="Ej: Abel – Big Fine"></div>
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Tipo</label><select class="fi" id="pprev-tipo"><option>Recibido</option><option>Emitido</option></select></div>
+      <div class="fg"><label class="fl">Operación</label><select class="fi" id="pprev-operacion"><option>Alquiler</option><option>Venta</option><option>Préstamo</option><option>Otro</option></select></div>
     </div>
   </div>
   <div id="pprev-loading" style="display:none;padding:30px;text-align:center;"><div class="spinner" style="display:inline-block;margin-bottom:8px;"></div><div style="font-size:13px;color:var(--muted);">Analizando documento con IA…</div></div>
@@ -1322,60 +1325,157 @@ var _pagaresPDFExtraidos=[];
 async function procesarPagaresPDF(files){
   if(!files||!files.length)return;
   var file=files[0];
-  // Leer archivo como base64
-  var base64=await new Promise(function(res,rej){
-    var r=new FileReader();
-    r.onload=function(){res(r.result.split(',')[1]);};
-    r.onerror=function(){rej(new Error('Error leyendo archivo'));};
-    r.readAsDataURL(file);
-  });
+  var ext=(file.name.split('.').pop()||'').toLowerCase();
   // Abrir modal de preview
   $$('m-pagares-preview').classList.add('open');
   $$('pprev-loading').style.display='block';
+  $$('pprev-loading').innerHTML='<div class="spinner" style="display:inline-block;margin-bottom:8px;"></div><div style="font-size:13px;color:var(--muted);">Analizando documento…</div>';
   $$('pprev-tabla').innerHTML='';
   $$('pprev-resumen').style.display='none';
   $$('btn-confirmar-pagares').style.display='none';
-  // Determinar tipo de contenido
-  var mediaType=file.type||'application/pdf';
-  var ext=(file.name.split('.').pop()||'').toLowerCase();
-  if(ext==='jpg'||ext==='jpeg')mediaType='image/jpeg';
-  if(ext==='png')mediaType='image/png';
-  if(ext==='pdf')mediaType='application/pdf';
   try{
-    var contentBlock;
-    if(mediaType==='application/pdf'){
-      contentBlock={type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
+    if(ext==='pdf'){
+      // Para PDF: usar pdfjsLib para extraer texto de cada página
+      var arrayBuffer=await file.arrayBuffer();
+      var pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+      var pagares=[];
+      for(var i=1;i<=pdf.numPages;i++){
+        var page=await pdf.getPage(i);
+        var textContent=await page.getTextContent();
+        var texto=textContent.items.map(function(item){return item.str;}).join(' ');
+        var pagare=extraerDatosPagare(texto,i);
+        if(pagare)pagares.push(pagare);
+      }
+      _pagaresPDFExtraidos=pagares;
     } else {
-      contentBlock={type:'image',source:{type:'base64',media_type:mediaType,data:base64}};
+      // Para imagen: no podemos hacer OCR local, mostrar formulario manual rápido
+      _pagaresPDFExtraidos=[];
     }
-    var response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:4000,
-        messages:[{
-          role:'user',
-          content:[
-            contentBlock,
-            {type:'text',text:'Analizá este documento de pagarés. Extraé TODOS los pagarés que encuentres. Para cada uno necesito: numero (ej: "2/36"), monto (número, ej: 910), fecha_vencimiento (formato YYYY-MM-DD), monto_texto (lo que dice en letras). Respondé SOLO con un JSON array, sin markdown, sin explicación. Ejemplo: [{"numero":"2/36","monto":910,"fecha_vencimiento":"2026-07-10","monto_texto":"novecientos diez"}]'}
-          ]
-        }]
-      })
-    });
-    var data=await response.json();
-    var text=data.content.map(function(c){return c.text||'';}).join('');
-    // Limpiar posibles backticks
-    text=text.replace(/```json|```/g,'').trim();
-    _pagaresPDFExtraidos=JSON.parse(text);
     $$('pprev-loading').style.display='none';
-    renderPagaresPreview();
+    if(_pagaresPDFExtraidos.length>0){
+      renderPagaresPreview();
+    } else {
+      // No se pudo extraer texto (PDF escaneado o imagen) → mostrar carga rápida manual
+      mostrarCargaRapidaManual();
+    }
   }catch(e){
     $$('pprev-loading').style.display='none';
-    $$('pprev-tabla').innerHTML='<div style="padding:20px;color:var(--red);text-align:center;">Error al analizar: '+e.message+'</div>';
+    // Fallback: carga rápida manual
+    mostrarCargaRapidaManual();
   }
-  // Reset input
   $$('pag-pdf-input').value='';
+}
+
+function extraerDatosPagare(texto,pagina){
+  // Buscar patrón: Nº X/XX, USD XXX, Vence el XX de MES de YYYY
+  var numero=null,monto=null,fechaVenc=null,montoTexto=null;
+  // Número
+  var nroMatch=texto.match(/N[°º]\s*(\d+\s*[\/|]\s*\d+)/i);
+  if(nroMatch)numero=nroMatch[1].replace(/\s/g,'');
+  // Monto USD
+  var montoMatch=texto.match(/(?:Por|USD|U\$D|US\$)\s*(\d[\d.,]*)/i);
+  if(montoMatch)monto=parseFloat(montoMatch[1].replace(/\./g,'').replace(',','.'));
+  // Fecha: "Vence el XX de MES de YYYY"
+  var meses={enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',setiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+  var fechaMatch=texto.match(/[Vv]ence\s*(?:el)?\s*(\d{1,2})\s*de\s*(\w+)\s*de\s*(\d{4})/);
+  if(fechaMatch){
+    var dia=fechaMatch[1].padStart(2,'0');
+    var mesStr=fechaMatch[2].toLowerCase();
+    var anio=fechaMatch[3];
+    var mes=meses[mesStr];
+    if(mes)fechaVenc=anio+'-'+mes+'-'+dia;
+  }
+  // Monto en letras
+  var letrasMatch=texto.match(/[Ll]a cantidad de\s+(.+?)(?:\s*[-—]|$)/);
+  if(letrasMatch)montoTexto=letrasMatch[1].trim();
+  if(numero||monto){
+    return {numero:numero,monto:monto,fecha_vencimiento:fechaVenc,monto_texto:montoTexto,pagina:pagina};
+  }
+  return null;
+}
+
+function mostrarCargaRapidaManual(){
+  $$('pprev-tabla').innerHTML=`
+    <div style="padding:16px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px;">📝 Carga rápida de serie de pagarés</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">El archivo es escaneado y no se pudo leer automáticamente. Completá los datos de la serie:</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Total de pagarés</label><input class="fi" type="number" id="cr-total" value="36" oninput="previewCargaRapida()"></div>
+        <div class="fg"><label class="fl">Desde Nro</label><input class="fi" type="number" id="cr-desde" value="1" oninput="previewCargaRapida()"></div>
+        <div class="fg"><label class="fl">Hasta Nro</label><input class="fi" type="number" id="cr-hasta" value="36" oninput="previewCargaRapida()"></div>
+      </div>
+      <div style="font-size:12px;font-weight:500;margin:12px 0 6px;color:var(--muted);">Tramos de montos (si cambia el valor en algún punto)</div>
+      <div id="cr-tramos">
+        <div class="frow" style="margin-bottom:4px;">
+          <div class="fg"><label class="fl">Desde cuota</label><input class="fi cr-tramo-desde" type="number" value="1"></div>
+          <div class="fg"><label class="fl">Hasta cuota</label><input class="fi cr-tramo-hasta" type="number" value="12"></div>
+          <div class="fg"><label class="fl">Monto USD</label><input class="fi cr-tramo-monto" type="number" value="910"></div>
+        </div>
+      </div>
+      <button class="btn btns" onclick="agregarTramoPagare()" style="font-size:10px;margin-bottom:12px;">+ Agregar tramo</button>
+      <div class="frow">
+        <div class="fg"><label class="fl">Primer vencimiento</label><input class="fi" type="date" id="cr-primer-venc" value="2026-07-10" oninput="previewCargaRapida()"></div>
+        <div class="fg"><label class="fl">Día del mes</label><input class="fi" type="number" id="cr-dia" value="10" oninput="previewCargaRapida()"></div>
+      </div>
+      <div id="cr-preview" style="margin-top:12px;max-height:250px;overflow-y:auto;"></div>
+    </div>`;
+  previewCargaRapida();
+  $$('btn-confirmar-pagares').style.display='';
+}
+
+function agregarTramoPagare(){
+  var div=document.getElementById('cr-tramos');
+  var html='<div class="frow" style="margin-bottom:4px;">'+
+    '<div class="fg"><label class="fl">Desde cuota</label><input class="fi cr-tramo-desde" type="number" value=""></div>'+
+    '<div class="fg"><label class="fl">Hasta cuota</label><input class="fi cr-tramo-hasta" type="number" value=""></div>'+
+    '<div class="fg"><label class="fl">Monto USD</label><input class="fi cr-tramo-monto" type="number" value=""></div>'+
+    '</div>';
+  div.insertAdjacentHTML('beforeend',html);
+}
+
+function previewCargaRapida(){
+  var totalSerie=parseInt($$('cr-total').value)||36;
+  var desde=parseInt($$('cr-desde').value)||1;
+  var hasta=parseInt($$('cr-hasta').value)||totalSerie;
+  var primerVenc=$$('cr-primer-venc').value;
+  var dia=parseInt($$('cr-dia').value)||10;
+  // Leer tramos
+  var tramos=[];
+  var tDesde=document.querySelectorAll('.cr-tramo-desde');
+  var tHasta=document.querySelectorAll('.cr-tramo-hasta');
+  var tMonto=document.querySelectorAll('.cr-tramo-monto');
+  for(var t=0;t<tDesde.length;t++){
+    var d=parseInt(tDesde[t].value)||0;
+    var h=parseInt(tHasta[t].value)||0;
+    var m=parseFloat(tMonto[t].value)||0;
+    if(d&&h&&m)tramos.push({desde:d,hasta:h,monto:m});
+  }
+  // Generar pagarés
+  _pagaresPDFExtraidos=[];
+  var fechaBase=primerVenc?new Date(primerVenc+'T12:00:00'):new Date();
+  var total=0;
+  for(var i=desde;i<=hasta;i++){
+    var monto=0;
+    for(var tr=0;tr<tramos.length;tr++){
+      if(i>=tramos[tr].desde&&i<=tramos[tr].hasta){monto=tramos[tr].monto;break;}
+    }
+    if(!monto&&tramos.length>0)monto=tramos[tramos.length-1].monto;
+    var fechaCuota=new Date(fechaBase);
+    fechaCuota.setMonth(fechaBase.getMonth()+(i-desde));
+    fechaCuota.setDate(dia);
+    var fechaStr=fechaCuota.toISOString().split('T')[0];
+    _pagaresPDFExtraidos.push({numero:i+'/'+totalSerie,monto:monto,fecha_vencimiento:fechaStr,monto_texto:''});
+    total+=monto;
+  }
+  // Render preview
+  var el=document.getElementById('cr-preview');
+  if(!el)return;
+  el.innerHTML='<table style="font-size:11px;"><thead><tr><th>Nro</th><th>Monto</th><th>Vencimiento</th></tr></thead><tbody>'+
+    _pagaresPDFExtraidos.map(function(p){
+      return '<tr><td class="mono">'+p.numero+'</td><td class="mono">U$D '+Number(p.monto).toLocaleString('es-AR')+'</td><td>'+fmtFecha(p.fecha_vencimiento)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  $$('pprev-resumen').style.display='block';
+  $$('pprev-resumen').innerHTML='<div style="display:flex;justify-content:space-between;"><span><b>'+_pagaresPDFExtraidos.length+'</b> pagarés</span><span class="mono" style="font-weight:500;">Total: U$D '+total.toLocaleString('es-AR')+'</span></div>';
 }
 
 function renderPagaresPreview(){
@@ -1430,7 +1530,7 @@ async function confirmarPagaresPDF(){
         monto:Number(p.monto),
         numero:p.numero||null,
         fecha_vencimiento:p.fecha_vencimiento||null,
-        notas:p.monto_texto?'En letras: '+p.monto_texto:null,
+        notas:($$('pprev-operacion').value||'')+(p.monto_texto?' · En letras: '+p.monto_texto:''),
         estado:'vigente'
       };
     });
