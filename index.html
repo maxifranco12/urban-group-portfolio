@@ -255,11 +255,9 @@ tr:hover td{background:var(--s2);}
       <div style="display:flex;gap:12px;font-size:11px;">
         <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#16a34a;display:inline-block;"></span> Ingresos</span>
         <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#dc2626;display:inline-block;"></span> Egresos</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#1a4fd6;display:inline-block;"></span> Neto</span>
       </div>
     </div>
-    <div id="flujo-chart" style="padding:0 20px 16px;"><div class="loading"><div class="spinner"></div>Calculando…</div></div>
-    <div id="flujo-tabla" style="border-top:1px solid var(--border);max-height:250px;overflow-y:auto;"></div>
+    <div id="flujo-chart" style="padding:0 12px 12px;"><div class="loading"><div class="spinner"></div>Calculando…</div></div>
   </div>
   <div class="sl">Proyectos</div>
   <div class="card"><div class="tw" id="DT" style="overflow-x:auto;"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
@@ -2237,40 +2235,34 @@ async function calcularFlujoCaja(){
   var maxVal=0;
   meses.forEach(function(m){maxVal=Math.max(maxVal,m.ingresos,m.egresos);});
   if(maxVal===0)maxVal=1;
-  // Render gráfico de barras
-  var chartH=180;
-  var barW=100/12; // % por mes
-  var chartHtml='<div style="position:relative;height:'+chartH+'px;display:flex;align-items:flex-end;gap:2px;">';
-  meses.forEach(function(m,idx){
-    var hIng=Math.round((m.ingresos/maxVal)*chartH*0.85);
-    var hEgr=Math.round((m.egresos/maxVal)*chartH*0.85);
+  // Render gráfico de barras con montos integrados
+  var chartH=140;
+  var chartHtml='<div style="display:flex;align-items:flex-end;gap:4px;">';
+  meses.forEach(function(m){
+    var hIng=maxVal?Math.round((m.ingresos/maxVal)*chartH*0.8):0;
+    var hEgr=maxVal?Math.round((m.egresos/maxVal)*chartH*0.8):0;
     var neto=m.ingresos-m.egresos;
-    chartHtml+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">'+
-      '<div style="display:flex;gap:2px;align-items:flex-end;height:'+(chartH-20)+'px;">'+
-        '<div style="width:40%;background:#16a34a;border-radius:2px 2px 0 0;height:'+Math.max(hIng,2)+'px;opacity:0.8;" title="Ingresos: U$D '+m.ingresos.toLocaleString('es-AR')+'"></div>'+
-        '<div style="width:40%;background:#dc2626;border-radius:2px 2px 0 0;height:'+Math.max(hEgr,2)+'px;opacity:0.7;" title="Egresos: U$D '+m.egresos.toLocaleString('es-AR')+'"></div>'+
+    chartHtml+='<div style="flex:1;text-align:center;min-width:0;">'+
+      '<div style="font-size:9px;color:var(--green);font-family:\'DM Mono\',monospace;margin-bottom:2px;overflow:hidden;white-space:nowrap;">'+(m.ingresos>0?Math.round(m.ingresos/1000)+'k':'')+'</div>'+
+      '<div style="display:flex;gap:1px;align-items:flex-end;justify-content:center;height:'+chartH+'px;">'+
+        '<div style="width:45%;max-width:20px;background:#16a34a;border-radius:2px 2px 0 0;min-height:2px;height:'+Math.max(hIng,2)+'px;"></div>'+
+        '<div style="width:45%;max-width:20px;background:#dc2626;border-radius:2px 2px 0 0;min-height:2px;height:'+Math.max(hEgr,2)+'px;opacity:0.8;"></div>'+
       '</div>'+
-      '<div style="font-size:9px;color:var(--muted);white-space:nowrap;">'+m.labelCorto+'</div>'+
+      '<div style="font-size:8px;color:var(--muted);margin-top:3px;white-space:nowrap;">'+m.labelCorto+'</div>'+
+      '<div style="font-size:8px;font-weight:500;color:'+(neto>=0?'var(--green)':'var(--red)')+';font-family:\'DM Mono\',monospace;">'+(neto>=0?'+':'')+Math.round(neto/1000)+'k</div>'+
     '</div>';
   });
   chartHtml+='</div>';
+  // Resumen total abajo
+  var totalIng=meses.reduce(function(s,m){return s+m.ingresos;},0);
+  var totalEgr=meses.reduce(function(s,m){return s+m.egresos;},0);
+  var totalNeto=totalIng-totalEgr;
+  chartHtml+='<div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;">'+
+    '<div><span style="color:var(--muted);">Total ingresos 12m:</span> <span class="mono" style="color:var(--green);font-weight:500;">'+fmtUSD(totalIng)+'</span></div>'+
+    '<div><span style="color:var(--muted);">Total egresos:</span> <span class="mono" style="color:var(--red);font-weight:500;">'+fmtUSD(totalEgr)+'</span></div>'+
+    '<div><span style="color:var(--muted);">Neto:</span> <span class="mono" style="color:'+(totalNeto>=0?'var(--blue)':'var(--red)')+';font-weight:500;">'+(totalNeto>=0?'+':'')+fmtUSD(totalNeto)+'</span></div>'+
+  '</div>';
   $$('flujo-chart').innerHTML=chartHtml;
-  // Render tabla
-  var saldoAcum=0;
-  var tablaHtml='<table style="font-size:11px;"><thead><tr><th>Mes</th><th style="text-align:right;">Ingresos</th><th style="text-align:right;">Egresos</th><th style="text-align:right;">Neto</th><th style="text-align:right;">Acumulado</th></tr></thead><tbody>';
-  meses.forEach(function(m){
-    var neto=m.ingresos-m.egresos;
-    saldoAcum+=neto;
-    tablaHtml+='<tr>'+
-      '<td style="font-weight:500;">'+m.label+'</td>'+
-      '<td style="text-align:right;color:var(--green);" class="mono">'+fmtUSD(m.ingresos)+'</td>'+
-      '<td style="text-align:right;color:var(--red);" class="mono">'+fmtUSD(m.egresos)+'</td>'+
-      '<td style="text-align:right;color:'+(neto>=0?'var(--green)':'var(--red)');+';font-weight:500;" class="mono">'+(neto>=0?'+':'')+fmtUSD(neto)+'</td>'+
-      '<td style="text-align:right;color:'+(saldoAcum>=0?'var(--blue)':'var(--red)')+';font-weight:500;" class="mono">'+fmtUSD(saldoAcum)+'</td>'+
-    '</tr>';
-  });
-  tablaHtml+='</tbody></table>';
-  $$('flujo-tabla').innerHTML=tablaHtml;
   }catch(e){console.error('Error flujo caja:',e);$$('flujo-chart').innerHTML='<div style="padding:16px;color:var(--muted);font-size:12px;">No se pudo calcular el flujo</div>';}
 }
 
