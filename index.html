@@ -341,11 +341,33 @@ tr:hover td{background:var(--s2);}
 <!-- PAGARÉS -->
 <div id="p-pagares" class="page">
   <div class="ph"><div><div class="pt">Pagarés</div><div class="ps">Control de pagarés emitidos y recibidos</div></div>
-    <button class="btn btnp" onclick="om('pagare')">+ Nuevo pagaré</button>
+    <div class="gap">
+      <button class="btn btnp" onclick="om('pagare')">+ Nuevo pagaré</button>
+      <button class="btn" onclick="$$('pag-pdf-input').click()" style="background:#7c3aed22;color:#7c3aed;border-color:#7c3aed;">📄 Cargar desde PDF</button>
+    </div>
+    <input type="file" id="pag-pdf-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="procesarPagaresPDF(this.files)">
   </div>
   <div class="mg g4" style="margin-bottom:16px;" id="pag-resumen"></div>
   <div class="card" id="PAG-CARD"><div class="loading"><div class="spinner"></div>Cargando…</div></div>
 </div>
+
+<!-- MODAL PREVIEW PAGARÉS PDF -->
+<div class="ov" id="m-pagares-preview"><div class="modal" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+  <div class="mt2">📄 Pagarés detectados desde archivo</div>
+  <div style="margin-bottom:12px;">
+    <div class="frow">
+      <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pprev-proyecto"><option>Cuenca Obra</option><option>Terrada 622-624 — UF2</option><option>Terrada 526 — Local 2</option><option>Giribone 2363</option><option>Parque Avellaneda</option><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option><option>ARYA Sumba — D21</option></select></div>
+      <div class="fg"><label class="fl">A nombre de</label><input class="fi" type="text" id="pprev-nombre" placeholder="Ej: Abel – Big Fine"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Tipo</label><select class="fi" id="pprev-tipo"><option>Recibido</option><option>Emitido</option></select></div>
+    </div>
+  </div>
+  <div id="pprev-loading" style="display:none;padding:30px;text-align:center;"><div class="spinner" style="display:inline-block;margin-bottom:8px;"></div><div style="font-size:13px;color:var(--muted);">Analizando documento con IA…</div></div>
+  <div id="pprev-tabla" style="max-height:400px;overflow-y:auto;"></div>
+  <div id="pprev-resumen" style="margin-top:12px;padding:12px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);font-size:12px;display:none;"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-pagares-preview')">Cancelar</button><button class="btn btnp" id="btn-confirmar-pagares" onclick="confirmarPagaresPDF()" style="display:none;">Confirmar y guardar todos</button></div>
+</div></div>
 
 <!-- MODAL PAGARÉ -->
 <div class="ov" id="m-pagare"><div class="modal" style="max-width:480px;">
@@ -1295,6 +1317,133 @@ async function sincronizarCobrosPendientes(){
 // ═══════════════════════════════════════════════════
 // PAGARÉS
 // ═══════════════════════════════════════════════════
+var _pagaresPDFExtraidos=[];
+
+async function procesarPagaresPDF(files){
+  if(!files||!files.length)return;
+  var file=files[0];
+  // Leer archivo como base64
+  var base64=await new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=function(){res(r.result.split(',')[1]);};
+    r.onerror=function(){rej(new Error('Error leyendo archivo'));};
+    r.readAsDataURL(file);
+  });
+  // Abrir modal de preview
+  $$('m-pagares-preview').classList.add('open');
+  $$('pprev-loading').style.display='block';
+  $$('pprev-tabla').innerHTML='';
+  $$('pprev-resumen').style.display='none';
+  $$('btn-confirmar-pagares').style.display='none';
+  // Determinar tipo de contenido
+  var mediaType=file.type||'application/pdf';
+  var ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='jpg'||ext==='jpeg')mediaType='image/jpeg';
+  if(ext==='png')mediaType='image/png';
+  if(ext==='pdf')mediaType='application/pdf';
+  try{
+    var contentBlock;
+    if(mediaType==='application/pdf'){
+      contentBlock={type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
+    } else {
+      contentBlock={type:'image',source:{type:'base64',media_type:mediaType,data:base64}};
+    }
+    var response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:4000,
+        messages:[{
+          role:'user',
+          content:[
+            contentBlock,
+            {type:'text',text:'Analizá este documento de pagarés. Extraé TODOS los pagarés que encuentres. Para cada uno necesito: numero (ej: "2/36"), monto (número, ej: 910), fecha_vencimiento (formato YYYY-MM-DD), monto_texto (lo que dice en letras). Respondé SOLO con un JSON array, sin markdown, sin explicación. Ejemplo: [{"numero":"2/36","monto":910,"fecha_vencimiento":"2026-07-10","monto_texto":"novecientos diez"}]'}
+          ]
+        }]
+      })
+    });
+    var data=await response.json();
+    var text=data.content.map(function(c){return c.text||'';}).join('');
+    // Limpiar posibles backticks
+    text=text.replace(/```json|```/g,'').trim();
+    _pagaresPDFExtraidos=JSON.parse(text);
+    $$('pprev-loading').style.display='none';
+    renderPagaresPreview();
+  }catch(e){
+    $$('pprev-loading').style.display='none';
+    $$('pprev-tabla').innerHTML='<div style="padding:20px;color:var(--red);text-align:center;">Error al analizar: '+e.message+'</div>';
+  }
+  // Reset input
+  $$('pag-pdf-input').value='';
+}
+
+function renderPagaresPreview(){
+  if(!_pagaresPDFExtraidos.length){
+    $$('pprev-tabla').innerHTML='<div style="padding:20px;color:var(--muted);text-align:center;">No se detectaron pagarés en el archivo</div>';
+    return;
+  }
+  var total=_pagaresPDFExtraidos.reduce(function(s,p){return s+Number(p.monto||0);},0);
+  $$('pprev-tabla').innerHTML='<table><thead><tr><th style="width:30px;"><input type="checkbox" checked onchange="toggleAllPagares(this.checked)"></th><th>Nro</th><th>Monto USD</th><th>Vencimiento</th><th>En letras</th><th></th></tr></thead><tbody>'+
+    _pagaresPDFExtraidos.map(function(p,idx){
+      return '<tr id="pprev-row-'+idx+'">'+
+        '<td><input type="checkbox" checked data-idx="'+idx+'" class="pprev-check"></td>'+
+        '<td class="mono" style="font-weight:500;">'+p.numero+'</td>'+
+        '<td class="mono" style="font-weight:500;">U$D '+Number(p.monto).toLocaleString('es-AR')+'</td>'+
+        '<td>'+fmtFecha(p.fecha_vencimiento)+'</td>'+
+        '<td style="font-size:11px;color:var(--muted);">'+( p.monto_texto||'')+'</td>'+
+        '<td><button class="btn btns" onclick="_pagaresPDFExtraidos.splice('+idx+',1);renderPagaresPreview();" style="font-size:9px;color:var(--red);">✕</button></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table>';
+  $$('pprev-resumen').style.display='block';
+  $$('pprev-resumen').innerHTML='<div style="display:flex;justify-content:space-between;"><span><b>'+_pagaresPDFExtraidos.length+'</b> pagarés detectados</span><span class="mono" style="font-weight:500;">Total: U$D '+total.toLocaleString('es-AR')+'</span></div>';
+  $$('btn-confirmar-pagares').style.display='';
+}
+
+function toggleAllPagares(checked){
+  document.querySelectorAll('.pprev-check').forEach(function(cb){cb.checked=checked;});
+}
+
+async function confirmarPagaresPDF(){
+  var proyecto=$$('pprev-proyecto').value;
+  var nombre=$$('pprev-nombre').value.trim();
+  var tipo=$$('pprev-tipo').value;
+  if(!nombre){toast('Ingresá a nombre de quién son los pagarés','err');return;}
+  // Filtrar solo los chequeados
+  var checks=document.querySelectorAll('.pprev-check');
+  var seleccionados=[];
+  checks.forEach(function(cb){
+    if(cb.checked){
+      var idx=parseInt(cb.dataset.idx);
+      if(_pagaresPDFExtraidos[idx])seleccionados.push(_pagaresPDFExtraidos[idx]);
+    }
+  });
+  if(!seleccionados.length){toast('Seleccioná al menos un pagaré','err');return;}
+  var btn=$$('btn-confirmar-pagares');
+  btn.disabled=true;btn.textContent='Guardando '+seleccionados.length+' pagarés…';
+  try{
+    var inserts=seleccionados.map(function(p){
+      return {
+        tipo:tipo,
+        proyecto:proyecto,
+        nombre:nombre,
+        monto:Number(p.monto),
+        numero:p.numero||null,
+        fecha_vencimiento:p.fecha_vencimiento||null,
+        notas:p.monto_texto?'En letras: '+p.monto_texto:null,
+        estado:'vigente'
+      };
+    });
+    var {error}=await sb.from('pagares').insert(inserts);
+    if(error){toast('Error: '+error.message,'err');return;}
+    cm('m-pagares-preview');
+    _pagaresPDFExtraidos=[];
+    toast(seleccionados.length+' pagarés cargados ✓','ok2');
+    cargarPagaresPage();
+  }catch(e){toast('Error: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='Confirmar y guardar todos';}
+}
+
 async function cargarPagaresPage(){
   var {data,error}=await sb.from('pagares').select('*').order('fecha_vencimiento');
   if(error||!data){$$('PAG-CARD').innerHTML='<div style="padding:20px;color:var(--muted);text-align:center;">Error al cargar pagarés</div>';return;}
