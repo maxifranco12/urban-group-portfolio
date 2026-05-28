@@ -1322,6 +1322,15 @@ async function sincronizarCobrosPendientes(){
 // ═══════════════════════════════════════════════════
 var _pagaresPDFExtraidos=[];
 
+function getAnthropicKey(){
+  var key=localStorage.getItem('anthropic_api_key');
+  if(!key){
+    key=prompt('Para leer pagarés automáticamente necesito tu API key de Anthropic.\n\nSolo se pide una vez y se guarda en tu navegador.\n\nPodés conseguirla en console.anthropic.com/settings/keys\n\nAPI Key:');
+    if(key)localStorage.setItem('anthropic_api_key',key.trim());
+  }
+  return key;
+}
+
 async function procesarPagaresPDF(files){
   if(!files||!files.length)return;
   var file=files[0];
@@ -1329,38 +1338,95 @@ async function procesarPagaresPDF(files){
   // Abrir modal de preview
   $$('m-pagares-preview').classList.add('open');
   $$('pprev-loading').style.display='block';
-  $$('pprev-loading').innerHTML='<div class="spinner" style="display:inline-block;margin-bottom:8px;"></div><div style="font-size:13px;color:var(--muted);">Analizando documento…</div>';
+  $$('pprev-loading').innerHTML='<div class="spinner" style="display:inline-block;margin-bottom:8px;"></div><div style="font-size:13px;color:var(--muted);">Leyendo documento con IA… puede tardar unos segundos</div>';
   $$('pprev-tabla').innerHTML='';
   $$('pprev-resumen').style.display='none';
   $$('btn-confirmar-pagares').style.display='none';
-  try{
-    if(ext==='pdf'){
-      // Para PDF: usar pdfjsLib para extraer texto de cada página
+  // Intentar primero con pdf.js (PDF con texto digital)
+  var pagaresPdfJs=[];
+  if(ext==='pdf'){
+    try{
       var arrayBuffer=await file.arrayBuffer();
       var pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-      var pagares=[];
       for(var i=1;i<=pdf.numPages;i++){
         var page=await pdf.getPage(i);
         var textContent=await page.getTextContent();
         var texto=textContent.items.map(function(item){return item.str;}).join(' ');
         var pagare=extraerDatosPagare(texto,i);
-        if(pagare)pagares.push(pagare);
+        if(pagare)pagaresPdfJs.push(pagare);
       }
-      _pagaresPDFExtraidos=pagares;
-    } else {
-      // Para imagen: no podemos hacer OCR local, mostrar formulario manual rápido
-      _pagaresPDFExtraidos=[];
-    }
+    }catch(e){console.log('pdf.js falló:',e);}
+  }
+  // Si pdf.js extrajo datos bien, usar esos
+  if(pagaresPdfJs.length>0){
+    _pagaresPDFExtraidos=pagaresPdfJs;
     $$('pprev-loading').style.display='none';
-    if(_pagaresPDFExtraidos.length>0){
-      renderPagaresPreview();
+    renderPagaresPreview();
+    $$('pag-pdf-input').value='';
+    return;
+  }
+  // Si no, intentar con API de Claude (para PDFs escaneados e imágenes)
+  var apiKey=getAnthropicKey();
+  if(!apiKey){
+    $$('pprev-loading').style.display='none';
+    mostrarCargaRapidaManual();
+    $$('pag-pdf-input').value='';
+    return;
+  }
+  try{
+    var base64=await new Promise(function(res,rej){
+      var r=new FileReader();
+      r.onload=function(){res(r.result.split(',')[1]);};
+      r.onerror=function(){rej(new Error('Error leyendo archivo'));};
+      r.readAsDataURL(file);
+    });
+    var mediaType='application/pdf';
+    if(ext==='jpg'||ext==='jpeg')mediaType='image/jpeg';
+    if(ext==='png')mediaType='image/png';
+    var contentBlock;
+    if(mediaType==='application/pdf'){
+      contentBlock={type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
     } else {
-      // No se pudo extraer texto (PDF escaneado o imagen) → mostrar carga rápida manual
-      mostrarCargaRapidaManual();
+      contentBlock={type:'image',source:{type:'base64',media_type:mediaType,data:base64}};
     }
+    var response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:4000,
+        messages:[{
+          role:'user',
+          content:[
+            contentBlock,
+            {type:'text',text:'Analizá este documento de pagarés. Extraé TODOS los pagarés que encuentres. Para cada uno necesito: numero (ej: "2/36"), monto (número sin puntos ni comas, ej: 910), fecha_vencimiento (formato YYYY-MM-DD), monto_texto (lo que dice en letras, ej: "dolares novecientos diez"). Respondé ÚNICAMENTE con un JSON array válido, sin markdown, sin backticks, sin explicación previa ni posterior. Ejemplo: [{"numero":"2/36","monto":910,"fecha_vencimiento":"2026-07-10","monto_texto":"dolares novecientos diez"}]'}
+          ]
+        }]
+      })
+    });
+    if(!response.ok){
+      var errData=await response.json().catch(function(){return {};});
+      throw new Error((errData.error&&errData.error.message)||'Error '+response.status);
+    }
+    var data=await response.json();
+    var text=data.content.map(function(c){return c.text||'';}).join('');
+    text=text.replace(/```json|```/g,'').trim();
+    _pagaresPDFExtraidos=JSON.parse(text);
+    $$('pprev-loading').style.display='none';
+    renderPagaresPreview();
   }catch(e){
+    console.error('Error API Claude:',e);
     $$('pprev-loading').style.display='none';
-    // Fallback: carga rápida manual
+    if(e.message&&e.message.includes('API')){
+      localStorage.removeItem('anthropic_api_key');
+      toast('API key inválida. Intentá de nuevo.','err');
+    }
+    // Fallback a carga rápida manual
     mostrarCargaRapidaManual();
   }
   $$('pag-pdf-input').value='';
