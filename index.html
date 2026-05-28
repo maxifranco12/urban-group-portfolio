@@ -242,6 +242,7 @@ tr:hover td{background:var(--s2);}
     <div class="mc ag" onclick="nav(document.querySelector('[data-page=caja]'))"><div class="ml">Caja USD</div><div class="mv mono" id="m-saldo" style="color:var(--blue);"><div class="spinner" style="display:inline-block;"></div></div><div class="ms">confirmado</div></div>
     <div class="mc ar" onclick="nav(document.querySelector('[data-page=alarmas]'))"><div class="ml">Alarmas</div><div class="mv mono" id="m-alarm" style="color:var(--red);">—</div><div class="ms" id="m-alarm-sub">cargando…</div></div>
   </div>
+  <div id="dash-vencimientos" style="display:none;"></div>
   <div class="sl">Cobros pendientes de confirmación</div>
   <div class="ag" id="AG" style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rl);"><div class="loading"><div class="spinner"></div>Cargando cobros pendientes…</div></div>
   <div class="sl">Proyectos</div>
@@ -338,6 +339,7 @@ tr:hover td{background:var(--s2);}
 <!-- ALARMAS -->
 <div id="p-alarmas" class="page">
   <div class="ph"><div><div class="pt">Alarmas</div><div class="ps">Vencimientos y recordatorios</div></div><button class="btn btnp" onclick="om('alarma')">+ Nueva alarma</button></div>
+  <div id="ALERTAS-VENC" style="margin-bottom:16px;"></div>
   <div class="card" id="ALARMAS-CARD"><div class="loading"><div class="spinner"></div>Cargando…</div></div>
 </div>
 
@@ -704,6 +706,7 @@ async function login(nombre,ini,rol){
   actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
   actualizarInvertidoReal().catch(e=>console.log("invertido:",e));
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
+  chequearVencimientos().catch(e=>console.log("vencimientos:",e));
   $$('dash-sub').textContent='Resumen del portfolio · ' + new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 }
 
@@ -719,7 +722,7 @@ function nav(el){
   el.classList.add('active');
   if(page==='caja')cargarMovimientos();
   if(page==='gastos')cargarGastos();
-  if(page==='alarmas')cargarAlarmasPage();
+  if(page==='alarmas'){cargarAlarmasPage();chequearVencimientos().catch(()=>{});}
   if(page==='cobros')cargarCobrosPage();
   if(page==='proyectos'){$$('PL').style.display='block';$$('PF').style.display='none';}
 }
@@ -1434,6 +1437,129 @@ function abrirAdjuntarExistente(contratoId){
     }
   };
   input.click();
+}
+
+// ═══════════════════════════════════════════════════
+// ALERTAS DE VENCIMIENTO DE CONTRATOS
+// ═══════════════════════════════════════════════════
+async function chequearVencimientos(){
+  var {data:contratos}=await sb.from('contratos').select('*').eq('activo',true);
+  if(!contratos||!contratos.length)return;
+  var hoy=new Date();
+  hoy.setHours(0,0,0,0);
+  var alertas=[];
+  contratos.forEach(function(c){
+    if(!c.fecha_fin)return;
+    var vence=new Date(c.fecha_fin+'T12:00:00');
+    var diffMs=vence-hoy;
+    var diffDias=Math.ceil(diffMs/(1000*60*60*24));
+    if(diffDias<0){
+      // Ya venció
+      alertas.push({
+        contrato:c, dias:diffDias, tipo:'vencido',
+        color:'var(--red)', bg:'var(--red-bg)',
+        icono:'🔴', texto:'Venció hace '+Math.abs(diffDias)+' días',
+        urgencia:1
+      });
+    } else if(diffDias<=15){
+      alertas.push({
+        contrato:c, dias:diffDias, tipo:'urgente',
+        color:'var(--red)', bg:'var(--red-bg)',
+        icono:'🔴', texto:'Vence en '+diffDias+' día'+(diffDias!==1?'s':''),
+        urgencia:2
+      });
+    } else if(diffDias<=30){
+      alertas.push({
+        contrato:c, dias:diffDias, tipo:'pronto',
+        color:'var(--amber)', bg:'var(--amber-lt,#fef3c7)',
+        icono:'🟡', texto:'Vence en '+diffDias+' días',
+        urgencia:3
+      });
+    } else if(diffDias<=60){
+      alertas.push({
+        contrato:c, dias:diffDias, tipo:'aviso',
+        color:'var(--blue)', bg:'var(--blue-bg,#e8f0fe)',
+        icono:'🔵', texto:'Vence en '+diffDias+' días',
+        urgencia:4
+      });
+    }
+  });
+  // Ordenar por urgencia
+  alertas.sort(function(a,b){return a.urgencia-b.urgencia||a.dias-b.dias;});
+  // Render en dashboard
+  var dashEl=$$('dash-vencimientos');
+  if(alertas.length>0){
+    dashEl.style.display='block';
+    dashEl.innerHTML='<div style="margin:12px 0;"><div class="sl" style="margin-bottom:8px;">⚠️ Vencimientos de contratos</div>'+
+      alertas.map(function(a){
+        var c=a.contrato;
+        var acciones='';
+        if(a.tipo==='vencido'||a.tipo==='urgente'){
+          acciones='<div style="display:flex;gap:6px;margin-top:6px;">'+
+            '<button class="btn btns" onclick="om(\'contrato\')" style="font-size:10px;">Renovar contrato</button>'+
+            '<button class="btn btns" onclick="descartarAlertaVenc(\''+c.id+'\')" style="font-size:10px;color:var(--muted);">Descartar</button>'+
+            '</div>';
+        }
+        return '<div style="background:'+a.bg+';border:1px solid '+a.color+';border-radius:var(--rl);padding:14px 16px;margin-bottom:8px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'+
+          '<div>'+
+            '<div style="font-size:13px;font-weight:500;">'+a.icono+' '+c.tipo+' '+c.nombre+' — '+a.texto+'</div>'+
+            '<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+
+              (c.obra||'')+' '+(c.local||'')+' · Vencimiento: '+fmtFecha(c.fecha_fin)+
+              (c.monto_total?' · Total: '+fmtUSD(c.monto_total):'')+
+            '</div>'+
+            acciones+
+          '</div>'+
+          '<span style="font-size:20px;font-weight:500;color:'+a.color+';">'+
+            (a.tipo==='vencido'?'VENCIDO':a.dias+'d')+
+          '</span>'+
+          '</div>'+
+        '</div>';
+      }).join('')+'</div>';
+  } else {
+    dashEl.style.display='none';
+  }
+  // Render en página de alarmas
+  var alarmEl=$$('ALERTAS-VENC');
+  if(alertas.length>0){
+    alarmEl.innerHTML='<div class="card" style="border-left:3px solid var(--amber);">'+
+      '<div class="ch"><div class="ct">Vencimientos de contratos</div><span class="badge ba">'+alertas.length+'</span></div>'+
+      alertas.map(function(a){
+        var c=a.contrato;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);">'+
+          '<div>'+
+            '<div style="font-size:13px;font-weight:500;">'+a.icono+' '+c.tipo+' '+c.nombre+'</div>'+
+            '<div style="font-size:11px;color:var(--muted);">'+(c.obra||'')+' '+(c.local||'')+' · '+fmtFecha(c.fecha_fin)+'</div>'+
+          '</div>'+
+          '<div style="text-align:right;">'+
+            '<div style="font-size:12px;font-weight:500;color:'+a.color+';">'+a.texto+'</div>'+
+            '<button class="btn btns" onclick="om(\'contrato\')" style="font-size:9px;margin-top:4px;">Renovar</button>'+
+          '</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  } else {
+    alarmEl.innerHTML='<div style="padding:12px 16px;font-size:12px;color:var(--green);background:var(--green-bg);border-radius:var(--rl);text-align:center;">✓ Todos los contratos están vigentes</div>';
+  }
+  // Actualizar contador de alarmas incluyendo vencimientos
+  var totalAlertas=alertas.length;
+  var {data:alarmasDB}=await sb.from('alarmas').select('id',{count:'exact'}).eq('resuelta',false);
+  var alarmasCount=(alarmasDB||[]).length;
+  var total=alarmasCount+totalAlertas;
+  $$('m-alarm').textContent=total;
+  $$('m-alarm-sub').textContent=total+' alarma'+(total!==1?'s':'')+' activa'+(total!==1?'s':'');
+  var bc=$$('BC');
+  bc.textContent=total>0?total:'';
+  bc.style.display=total>0?'':'none';
+}
+
+async function descartarAlertaVenc(contratoId){
+  // Marcar en localStorage que esta alerta fue descartada (no queremos modificar Supabase)
+  var descartadas=JSON.parse(localStorage.getItem('venc_descartadas')||'{}');
+  descartadas[contratoId]=new Date().toISOString();
+  localStorage.setItem('venc_descartadas',JSON.stringify(descartadas));
+  toast('Alerta descartada ✓','ok2');
+  await chequearVencimientos();
 }
 
 async function migrarFashionSiNoExiste(){
