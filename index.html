@@ -208,6 +208,7 @@ tr:hover td{background:var(--s2);}
       <div class="ni" data-page="cobros" onclick="nav(this)"><div class="nd" style="background:#0f7a4a;"></div>Cobros</div>
       <div class="ni" data-page="caja" onclick="nav(this)"><div class="nd" style="background:#1a4fd6;"></div>Caja USD</div>
       <div class="ni" data-page="gastos" onclick="nav(this)"><div class="nd" style="background:#b81c1c;"></div>Gastos</div>
+      <div class="ni" data-page="pagares" onclick="nav(this)"><div class="nd" style="background:#7c3aed;"></div>Pagarés<span class="nb" id="BC-PAG" style="display:none;"></span></div>
     </div>
     <div class="ns">
       <div class="nsl">Seguimiento</div>
@@ -337,6 +338,36 @@ tr:hover td{background:var(--s2);}
 </div>
 
 <!-- ALARMAS -->
+<!-- PAGARÉS -->
+<div id="p-pagares" class="page">
+  <div class="ph"><div><div class="pt">Pagarés</div><div class="ps">Control de pagarés emitidos y recibidos</div></div>
+    <button class="btn btnp" onclick="om('pagare')">+ Nuevo pagaré</button>
+  </div>
+  <div class="mg g4" style="margin-bottom:16px;" id="pag-resumen"></div>
+  <div class="card" id="PAG-CARD"><div class="loading"><div class="spinner"></div>Cargando…</div></div>
+</div>
+
+<!-- MODAL PAGARÉ -->
+<div class="ov" id="m-pagare"><div class="modal" style="max-width:480px;">
+  <div class="mt2" id="pag-title">Nuevo pagaré</div>
+  <input type="hidden" id="pag-edit-id" value="">
+  <div class="frow">
+    <div class="fg"><label class="fl">Tipo</label><select class="fi" id="pag-tipo"><option>Emitido</option><option>Recibido</option></select></div>
+    <div class="fg"><label class="fl">Proyecto</label><select class="fi" id="pag-proyecto"><option>Cuenca Obra</option><option>Terrada 622-624 — UF2</option><option>Terrada 526 — Local 2</option><option>Giribone 2363</option><option>Parque Avellaneda</option><option>Cerviño 3724 — 205</option><option>Rep. de la India 2843 — P13</option><option>Av. Córdoba 3350 — 404</option><option>Av. Córdoba 3350 — 403</option><option>ARYA Sumba — D21</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">A nombre de</label><input class="fi" type="text" id="pag-nombre" placeholder="Ej: Gastón Duek, Nicolás Radzinsky"></div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Monto USD</label><input class="fi" type="number" id="pag-monto" step="0.01"></div>
+    <div class="fg"><label class="fl">Nro. de pagaré</label><input class="fi" type="text" id="pag-numero" placeholder="Ej: 001/036"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Fecha emisión</label><input class="fi" type="date" id="pag-emision"></div>
+    <div class="fg"><label class="fl">Fecha vencimiento</label><input class="fi" type="date" id="pag-vencimiento"></div>
+  </div>
+  <div class="fg"><label class="fl">Notas</label><input class="fi" type="text" id="pag-notas" placeholder="Detalle opcional"></div>
+  <div class="ma"><button class="btn" onclick="cm('m-pagare')">Cancelar</button><button class="btn btnp" id="btn-guardar-pagare" onclick="guardarPagare()">Crear pagaré</button></div>
+</div></div>
+
 <div id="p-alarmas" class="page">
   <div class="ph"><div><div class="pt">Alarmas</div><div class="ps">Vencimientos y recordatorios</div></div><button class="btn btnp" onclick="om('alarma')">+ Nueva alarma</button></div>
   <div id="ALERTAS-VENC" style="margin-bottom:16px;"></div>
@@ -724,6 +755,7 @@ function nav(el){
   if(page==='gastos')cargarGastos();
   if(page==='alarmas'){cargarAlarmasPage();chequearVencimientos().catch(()=>{});}
   if(page==='cobros')cargarCobrosPage();
+  if(page==='pagares')cargarPagaresPage();
   if(page==='proyectos'){$$('PL').style.display='block';$$('PF').style.display='none';}
 }
 
@@ -1261,6 +1293,169 @@ async function sincronizarCobrosPendientes(){
 }
 
 // ═══════════════════════════════════════════════════
+// PAGARÉS
+// ═══════════════════════════════════════════════════
+async function cargarPagaresPage(){
+  var {data,error}=await sb.from('pagares').select('*').order('fecha_vencimiento');
+  if(error||!data){$$('PAG-CARD').innerHTML='<div style="padding:20px;color:var(--muted);text-align:center;">Error al cargar pagarés</div>';return;}
+  var hoy=new Date();hoy.setHours(0,0,0,0);
+  // Resumen
+  var vigentes=data.filter(function(p){return p.estado==='vigente';});
+  var cobrados=data.filter(function(p){return p.estado==='cobrado';});
+  var vencidos=data.filter(function(p){return p.estado==='vencido';});
+  // Auto-marcar vencidos
+  for(var v=0;v<vigentes.length;v++){
+    if(vigentes[v].fecha_vencimiento){
+      var fv=new Date(vigentes[v].fecha_vencimiento+'T12:00:00');
+      if(fv<hoy){
+        await sb.from('pagares').update({estado:'vencido'}).eq('id',vigentes[v].id);
+        vigentes[v].estado='vencido';
+        vencidos.push(vigentes[v]);
+      }
+    }
+  }
+  vigentes=data.filter(function(p){return p.estado==='vigente';});
+  var totalVigente=vigentes.reduce(function(s,p){return s+Number(p.monto||0);},0);
+  var totalCobrado=cobrados.reduce(function(s,p){return s+Number(p.monto||0);},0);
+  var totalVencido=vencidos.reduce(function(s,p){return s+Number(p.monto||0);},0);
+  // Próximos a vencer (30 días)
+  var proxVencer=vigentes.filter(function(p){
+    if(!p.fecha_vencimiento)return false;
+    var fv=new Date(p.fecha_vencimiento+'T12:00:00');
+    var diff=(fv-hoy)/(1000*60*60*24);
+    return diff<=30&&diff>=0;
+  });
+  $$('pag-resumen').innerHTML=
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;text-align:center;">'+
+      '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Vigentes</div>'+
+      '<div style="font-size:22px;font-weight:500;font-family:\'DM Mono\',monospace;color:var(--amber);">'+fmtUSD(totalVigente)+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);">'+vigentes.length+' pagaré'+(vigentes.length!==1?'s':'')+'</div>'+
+    '</div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;text-align:center;">'+
+      '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Cobrados</div>'+
+      '<div style="font-size:22px;font-weight:500;font-family:\'DM Mono\',monospace;color:var(--green);">'+fmtUSD(totalCobrado)+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);">'+cobrados.length+' pagaré'+(cobrados.length!==1?'s':'')+'</div>'+
+    '</div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;text-align:center;">'+
+      '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Vencidos</div>'+
+      '<div style="font-size:22px;font-weight:500;font-family:\'DM Mono\',monospace;color:var(--red);">'+fmtUSD(totalVencido)+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);">'+vencidos.length+'</div>'+
+    '</div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;text-align:center;">'+
+      '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Vencen en 30d</div>'+
+      '<div style="font-size:22px;font-weight:500;font-family:\'DM Mono\',monospace;">'+proxVencer.length+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);">próximos</div>'+
+    '</div>';
+  // Badge
+  var bcPag=$$('BC-PAG');
+  bcPag.textContent=vencidos.length>0?vencidos.length:(proxVencer.length>0?proxVencer.length:'');
+  bcPag.style.display=(vencidos.length>0||proxVencer.length>0)?'':'none';
+  // Tabla
+  if(!data.length){
+    $$('PAG-CARD').innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">Sin pagarés cargados. Usá <b>+ Nuevo pagaré</b> para empezar.</div>';
+    return;
+  }
+  var colEstado={vigente:'ba',cobrado:'bg',vencido:'br'};
+  $$('PAG-CARD').innerHTML='<div class="tw" style="max-height:500px;overflow-y:auto;"><table>'+
+    '<thead><tr><th>Nro</th><th>A nombre de</th><th>Proyecto</th><th>Monto</th><th>Emisión</th><th>Vencimiento</th><th>Estado</th><th>Tipo</th><th></th></tr></thead>'+
+    '<tbody>'+data.map(function(p){
+      var diasVenc='';
+      if(p.estado==='vigente'&&p.fecha_vencimiento){
+        var fv2=new Date(p.fecha_vencimiento+'T12:00:00');
+        var dd=Math.ceil((fv2-hoy)/(1000*60*60*24));
+        if(dd<=30)diasVenc=' <span style="font-size:9px;color:var(--amber);">('+dd+'d)</span>';
+      }
+      return '<tr>'+
+        '<td class="mono" style="font-size:11px;">'+(p.numero||'—')+'</td>'+
+        '<td style="font-weight:500;">'+p.nombre+'</td>'+
+        '<td style="font-size:11px;">'+(p.proyecto||'—')+'</td>'+
+        '<td class="mono" style="font-weight:500;">'+fmtUSD(p.monto)+'</td>'+
+        '<td style="font-size:11px;">'+(p.fecha_emision?fmtFecha(p.fecha_emision):'—')+'</td>'+
+        '<td style="font-size:11px;">'+(p.fecha_vencimiento?fmtFecha(p.fecha_vencimiento):'—')+diasVenc+'</td>'+
+        '<td><span class="badge '+(colEstado[p.estado]||'bgr')+'">'+p.estado+'</span></td>'+
+        '<td style="font-size:10px;">'+(p.tipo||'')+'</td>'+
+        '<td style="white-space:nowrap;">'+
+          (p.estado==='vigente'?'<button class="btn btns" onclick="marcarPagareCobrado(\''+p.id+'\')" style="font-size:9px;padding:2px 6px;color:var(--green);">✓ Cobrado</button>':'')+
+          ' <button class="btn btns" onclick="editarPagare(\''+p.id+'\')" style="font-size:9px;padding:2px 6px;">✏️</button>'+
+          ' <button class="btn btns" onclick="borrarPagare(\''+p.id+'\',\''+p.nombre.replace(/'/g,"\\'")+'\')" style="font-size:9px;padding:2px 6px;color:var(--red);">🗑</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+async function guardarPagare(){
+  var nombre=$$('pag-nombre').value.trim();
+  if(!nombre){toast('Ingresá a nombre de quién','err');return;}
+  var monto=parseFloat($$('pag-monto').value);
+  if(!monto||isNaN(monto)){toast('Ingresá el monto','err');return;}
+  var btn=$$('btn-guardar-pagare');
+  btn.disabled=true;var _t=btn.textContent;btn.textContent='Guardando…';
+  try{
+    var pagareData={
+      tipo:$$('pag-tipo').value,
+      proyecto:$$('pag-proyecto').value,
+      nombre:nombre,
+      monto:monto,
+      numero:$$('pag-numero').value||null,
+      fecha_emision:$$('pag-emision').value||null,
+      fecha_vencimiento:$$('pag-vencimiento').value||null,
+      notas:$$('pag-notas').value||null,
+      estado:'vigente'
+    };
+    var editId=$$('pag-edit-id').value;
+    if(editId){
+      await sb.from('pagares').update(pagareData).eq('id',editId);
+      toast('Pagaré actualizado ✓','ok2');
+    } else {
+      await sb.from('pagares').insert(pagareData);
+      toast('Pagaré creado ✓','ok2');
+    }
+    cm('m-pagare');
+    resetModalPagare();
+    cargarPagaresPage();
+  }catch(e){toast('Error: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent=_t;}
+}
+
+function resetModalPagare(){
+  $$('pag-edit-id').value='';
+  $$('pag-title').textContent='Nuevo pagaré';
+  $$('btn-guardar-pagare').textContent='Crear pagaré';
+  ['pag-nombre','pag-monto','pag-numero','pag-emision','pag-vencimiento','pag-notas'].forEach(function(id){$$(id).value='';});
+}
+
+async function editarPagare(id){
+  var {data:p}=await sb.from('pagares').select('*').eq('id',id).single();
+  if(!p){toast('Pagaré no encontrado','err');return;}
+  $$('pag-edit-id').value=id;
+  $$('pag-title').textContent='Editar pagaré';
+  $$('btn-guardar-pagare').textContent='Guardar cambios';
+  $$('pag-tipo').value=p.tipo||'Emitido';
+  $$('pag-proyecto').value=p.proyecto||'';
+  $$('pag-nombre').value=p.nombre||'';
+  $$('pag-monto').value=p.monto||'';
+  $$('pag-numero').value=p.numero||'';
+  $$('pag-emision').value=p.fecha_emision||'';
+  $$('pag-vencimiento').value=p.fecha_vencimiento||'';
+  $$('pag-notas').value=p.notas||'';
+  $$('m-pagare').classList.add('open');
+}
+
+async function marcarPagareCobrado(id){
+  if(!confirm('¿Marcar este pagaré como cobrado?'))return;
+  await sb.from('pagares').update({estado:'cobrado',fecha_cobro:new Date().toISOString().split('T')[0]}).eq('id',id);
+  toast('Pagaré marcado como cobrado ✓','ok2');
+  cargarPagaresPage();
+}
+
+async function borrarPagare(id,nombre){
+  if(!confirm('¿Eliminar pagaré de "'+nombre+'"?'))return;
+  await sb.from('pagares').delete().eq('id',id);
+  toast('Pagaré eliminado ✓','ok2');
+  cargarPagaresPage();
+}
+
+// ═══════════════════════════════════════════════════
 // ADJUNTOS DE CONTRATOS
 // ═══════════════════════════════════════════════════
 var _adjuntosPendientes=[]; // archivos en cola para subir con el contrato
@@ -1444,11 +1639,12 @@ function abrirAdjuntarExistente(contratoId){
 // ═══════════════════════════════════════════════════
 async function chequearVencimientos(){
   var {data:contratos}=await sb.from('contratos').select('*').eq('activo',true);
-  if(!contratos||!contratos.length)return;
+  var {data:pagares}=await sb.from('pagares').select('*').eq('estado','vigente');
   var hoy=new Date();
   hoy.setHours(0,0,0,0);
   var alertas=[];
-  contratos.forEach(function(c){
+  // Contratos
+  (contratos||[]).forEach(function(c){
     if(!c.fecha_fin)return;
     var vence=new Date(c.fecha_fin+'T12:00:00');
     var diffMs=vence-hoy;
@@ -1482,6 +1678,22 @@ async function chequearVencimientos(){
         icono:'🔵', texto:'Vence en '+diffDias+' días',
         urgencia:4
       });
+    }
+  });
+  // Pagarés vigentes próximos a vencer
+  (pagares||[]).forEach(function(p){
+    if(!p.fecha_vencimiento)return;
+    var vence=new Date(p.fecha_vencimiento+'T12:00:00');
+    var diffMs=vence-hoy;
+    var diffDias=Math.ceil(diffMs/(1000*60*60*24));
+    if(diffDias<0){
+      alertas.push({contrato:{tipo:'Pagaré',nombre:p.nombre,obra:p.proyecto||'',local:p.numero?'Nro '+p.numero:'',fecha_fin:p.fecha_vencimiento,monto_total:p.monto,id:p.id},dias:diffDias,tipo:'vencido',color:'var(--red)',bg:'var(--red-bg)',icono:'🔴',texto:'Venció hace '+Math.abs(diffDias)+' días',urgencia:1});
+    } else if(diffDias<=15){
+      alertas.push({contrato:{tipo:'Pagaré',nombre:p.nombre,obra:p.proyecto||'',local:p.numero?'Nro '+p.numero:'',fecha_fin:p.fecha_vencimiento,monto_total:p.monto,id:p.id},dias:diffDias,tipo:'urgente',color:'var(--red)',bg:'var(--red-bg)',icono:'🔴',texto:'Vence en '+diffDias+' día'+(diffDias!==1?'s':''),urgencia:2});
+    } else if(diffDias<=30){
+      alertas.push({contrato:{tipo:'Pagaré',nombre:p.nombre,obra:p.proyecto||'',local:p.numero?'Nro '+p.numero:'',fecha_fin:p.fecha_vencimiento,monto_total:p.monto,id:p.id},dias:diffDias,tipo:'pronto',color:'var(--amber)',bg:'var(--amber-lt,#fef3c7)',icono:'🟡',texto:'Vence en '+diffDias+' días',urgencia:3});
+    } else if(diffDias<=60){
+      alertas.push({contrato:{tipo:'Pagaré',nombre:p.nombre,obra:p.proyecto||'',local:p.numero?'Nro '+p.numero:'',fecha_fin:p.fecha_vencimiento,monto_total:p.monto,id:p.id},dias:diffDias,tipo:'aviso',color:'var(--blue)',bg:'var(--blue-bg,#e8f0fe)',icono:'🔵',texto:'Vence en '+diffDias+' días',urgencia:4});
     }
   });
   // Ordenar por urgencia
@@ -2410,8 +2622,8 @@ async function generarReporte(){
 // ═══════════════════════════════════════════════════
 // MODALES Y UTILS
 // ═══════════════════════════════════════════════════
-const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso',contrato:'m-contrato'};
-function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';if(t==='contrato')resetModalContrato();const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){$$('g-edit-id').value='';$$('g-title').textContent='Registrar gasto';$$('btn-guardar-gasto').textContent='Registrar gasto';window._gastoEditOriginal=null;$$('g-monto').value='';$$('g-desc').value='';$$('g-moneda').value='USD';$$('g-origen').value='Caja USD Propia';$$('g-inversor').value='Urban Group';var hoy=new Date().toISOString().split("T")[0];if($$("g-fecha"))$$("g-fecha").value=hoy;if($$("g-fecha-ars"))$$("g-fecha-ars").value=hoy;toggleGastoMoneda();cargarUltimaCotizacion();if(window._fichaGastoProyecto){var _sgp=document.getElementById('g-proyecto');if(_sgp){for(var _gi=0;_gi<_sgp.options.length;_gi++){if(_sgp.options[_gi].value===window._fichaGastoProyecto||window._fichaGastoProyecto.includes(_sgp.options[_gi].value)||_sgp.options[_gi].value.includes(window._fichaGastoProyecto.split(' ')[0])){_sgp.value=_sgp.options[_gi].value;break;}}}window._fichaGastoProyecto='';}}}
+const MM={pago:'m-pago',compra:'m-compra',gasto:'m-gasto',alarma:'m-alarma',ingreso:'m-ingreso',egreso:'m-ingreso',contrato:'m-contrato',pagare:'m-pagare'};
+function om(t){if(t==='egreso')$$('IT').textContent='Registrar egreso';if(t==='ingreso')$$('IT').textContent='Registrar ingreso';if(t==='contrato')resetModalContrato();if(t==='pagare')resetModalPagare();const id=MM[t];if(id)$$(id).classList.add('open');if(t==='pago')sugerirCuota();if(t==='gasto'){$$('g-edit-id').value='';$$('g-title').textContent='Registrar gasto';$$('btn-guardar-gasto').textContent='Registrar gasto';window._gastoEditOriginal=null;$$('g-monto').value='';$$('g-desc').value='';$$('g-moneda').value='USD';$$('g-origen').value='Caja USD Propia';$$('g-inversor').value='Urban Group';var hoy=new Date().toISOString().split("T")[0];if($$("g-fecha"))$$("g-fecha").value=hoy;if($$("g-fecha-ars"))$$("g-fecha-ars").value=hoy;toggleGastoMoneda();cargarUltimaCotizacion();if(window._fichaGastoProyecto){var _sgp=document.getElementById('g-proyecto');if(_sgp){for(var _gi=0;_gi<_sgp.options.length;_gi++){if(_sgp.options[_gi].value===window._fichaGastoProyecto||window._fichaGastoProyecto.includes(_sgp.options[_gi].value)||_sgp.options[_gi].value.includes(window._fichaGastoProyecto.split(' ')[0])){_sgp.value=_sgp.options[_gi].value;break;}}}window._fichaGastoProyecto='';}}}
 function cm(id){$$(id).classList.remove('open');}
 document.querySelectorAll('.ov').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
