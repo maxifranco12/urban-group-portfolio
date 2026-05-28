@@ -248,6 +248,19 @@ tr:hover td{background:var(--s2);}
   <div id="dash-vencimientos" style="display:none;"></div>
   <div class="sl">Cobros pendientes de confirmación</div>
   <div class="ag" id="AG" style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rl);"><div class="loading"><div class="spinner"></div>Cargando cobros pendientes…</div></div>
+  <div class="sl">Flujo de caja proyectado (12 meses)</div>
+  <div class="card" id="FLUJO-CAJA" style="margin-bottom:16px;padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:13px;font-weight:500;">Ingresos vs Egresos mensuales</div>
+      <div style="display:flex;gap:12px;font-size:11px;">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#16a34a;display:inline-block;"></span> Ingresos</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#dc2626;display:inline-block;"></span> Egresos</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#1a4fd6;display:inline-block;"></span> Neto</span>
+      </div>
+    </div>
+    <div id="flujo-chart" style="padding:0 20px 16px;"><div class="loading"><div class="spinner"></div>Calculando…</div></div>
+    <div id="flujo-tabla" style="border-top:1px solid var(--border);max-height:250px;overflow-y:auto;"></div>
+  </div>
   <div class="sl">Proyectos</div>
   <div class="card"><div class="tw" id="DT" style="overflow-x:auto;"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
 </div>
@@ -763,6 +776,7 @@ async function login(nombre,ini,rol){
   actualizarInvertidoReal().catch(e=>console.log("invertido:",e));
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
   chequearVencimientos().catch(e=>console.log("vencimientos:",e));
+  calcularFlujoCaja().catch(e=>console.log("flujo:",e));
   $$('dash-sub').textContent='Resumen del portfolio · ' + new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 }
 
@@ -2138,6 +2152,126 @@ async function migrarFashionSiNoExiste(){
   }
   await sb.from('cobros').insert(cobros);
   console.log('Fashion Collection migrado: 12 cuotas (2 cobradas, 10 pendientes)');
+}
+
+async function calcularFlujoCaja(){
+  try{
+  // Obtener cobros pendientes (ingresos futuros) y pagos/cuotas futuras (egresos)
+  var [cobrosRes,pagosRes,gastosRes,contratosRes]=await Promise.all([
+    sb.from('cobros').select('monto,fecha_pactada,concepto,cobrado'),
+    sb.from('pagos_cuotas').select('monto_usd,fecha,proyecto_nombre'),
+    sb.from('gastos').select('monto_usd,fecha,proyecto'),
+    sb.from('contratos').select('*').eq('activo',true)
+  ]);
+  var cobros=cobrosRes.data||[];
+  var pagos=pagosRes.data||[];
+  var gastos=gastosRes.data||[];
+  var contratos=contratosRes.data||[];
+  var hoy=new Date();
+  var meses=[];
+  var mesesNombres=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  // Generar 12 meses desde hoy
+  for(var i=0;i<12;i++){
+    var d=new Date(hoy.getFullYear(),hoy.getMonth()+i,1);
+    meses.push({
+      fecha:d,
+      label:mesesNombres[d.getMonth()]+' '+d.getFullYear(),
+      labelCorto:mesesNombres[d.getMonth()]+"'"+String(d.getFullYear()).slice(2),
+      anio:d.getFullYear(),
+      mes:d.getMonth(),
+      ingresos:0,
+      egresos:0
+    });
+  }
+  // Sumar ingresos de cobros pendientes
+  cobros.forEach(function(c){
+    if(c.cobrado||!c.fecha_pactada)return;
+    var fc=new Date(c.fecha_pactada+'T12:00:00');
+    meses.forEach(function(m){
+      if(fc.getFullYear()===m.anio&&fc.getMonth()===m.mes){
+        m.ingresos+=Number(c.monto||0);
+      }
+    });
+  });
+  // Sumar ingresos de contratos (renta mensual estimada futura - para meses sin cobros cargados)
+  contratos.forEach(function(ctr){
+    var montoMensual=ctr.a1_monto||0;
+    if(!montoMensual)return;
+    meses.forEach(function(m){
+      // Solo agregar si no hay cobros de este contrato para ese mes
+      var yaTieneCobro=cobros.some(function(c){
+        if(c.cobrado||!c.fecha_pactada)return false;
+        var fc=new Date(c.fecha_pactada+'T12:00:00');
+        return fc.getFullYear()===m.anio&&fc.getMonth()===m.mes&&
+          (c.concepto||'').toLowerCase().includes((ctr.nombre||'').toLowerCase().split(' ')[0]);
+      });
+      if(!yaTieneCobro){
+        // Verificar si el contrato cubre este mes
+        if(ctr.fecha_inicio&&ctr.fecha_fin){
+          var ini=new Date(ctr.fecha_inicio+'T12:00:00');
+          var fin=new Date(ctr.fecha_fin+'T12:00:00');
+          if(m.fecha>=ini&&m.fecha<=fin){
+            // No sumar para no duplicar, los cobros pendientes ya cubren esto
+          }
+        }
+      }
+    });
+  });
+  // Estimar egresos recurrentes (promedio mensual de los últimos 6 meses de gastos)
+  var gastosUlt6m=gastos.filter(function(g){
+    if(!g.fecha)return false;
+    var fg=new Date(g.fecha+'T12:00:00');
+    var hace6m=new Date();hace6m.setMonth(hace6m.getMonth()-6);
+    return fg>=hace6m;
+  });
+  var promedioMensualGastos=0;
+  if(gastosUlt6m.length>0){
+    var totalGastos6m=gastosUlt6m.reduce(function(s,g){return s+Number(g.monto_usd||0);},0);
+    promedioMensualGastos=Math.round(totalGastos6m/6);
+  }
+  // Agregar egresos estimados a cada mes futuro
+  meses.forEach(function(m,idx){
+    if(idx>0)m.egresos+=promedioMensualGastos; // no el mes actual
+  });
+  // Calcular máximo para escala del gráfico
+  var maxVal=0;
+  meses.forEach(function(m){maxVal=Math.max(maxVal,m.ingresos,m.egresos);});
+  if(maxVal===0)maxVal=1;
+  // Render gráfico de barras
+  var chartH=180;
+  var barW=100/12; // % por mes
+  var chartHtml='<div style="position:relative;height:'+chartH+'px;display:flex;align-items:flex-end;gap:2px;">';
+  meses.forEach(function(m,idx){
+    var hIng=Math.round((m.ingresos/maxVal)*chartH*0.85);
+    var hEgr=Math.round((m.egresos/maxVal)*chartH*0.85);
+    var neto=m.ingresos-m.egresos;
+    chartHtml+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">'+
+      '<div style="display:flex;gap:2px;align-items:flex-end;height:'+(chartH-20)+'px;">'+
+        '<div style="width:40%;background:#16a34a;border-radius:2px 2px 0 0;height:'+Math.max(hIng,2)+'px;opacity:0.8;" title="Ingresos: U$D '+m.ingresos.toLocaleString('es-AR')+'"></div>'+
+        '<div style="width:40%;background:#dc2626;border-radius:2px 2px 0 0;height:'+Math.max(hEgr,2)+'px;opacity:0.7;" title="Egresos: U$D '+m.egresos.toLocaleString('es-AR')+'"></div>'+
+      '</div>'+
+      '<div style="font-size:9px;color:var(--muted);white-space:nowrap;">'+m.labelCorto+'</div>'+
+    '</div>';
+  });
+  chartHtml+='</div>';
+  $$('flujo-chart').innerHTML=chartHtml;
+  // Render tabla
+  var saldoAcum=0;
+  var tablaHtml='<table style="font-size:11px;"><thead><tr><th>Mes</th><th style="text-align:right;">Ingresos</th><th style="text-align:right;">Egresos</th><th style="text-align:right;">Neto</th><th style="text-align:right;">Acumulado</th></tr></thead><tbody>';
+  meses.forEach(function(m){
+    var neto=m.ingresos-m.egresos;
+    saldoAcum+=neto;
+    tablaHtml+='<tr>'+
+      '<td style="font-weight:500;">'+m.label+'</td>'+
+      '<td style="text-align:right;color:var(--green);" class="mono">'+fmtUSD(m.ingresos)+'</td>'+
+      '<td style="text-align:right;color:var(--red);" class="mono">'+fmtUSD(m.egresos)+'</td>'+
+      '<td style="text-align:right;color:'+(neto>=0?'var(--green)':'var(--red)');+';font-weight:500;" class="mono">'+(neto>=0?'+':'')+fmtUSD(neto)+'</td>'+
+      '<td style="text-align:right;color:'+(saldoAcum>=0?'var(--blue)':'var(--red)')+';font-weight:500;" class="mono">'+fmtUSD(saldoAcum)+'</td>'+
+    '</tr>';
+  });
+  tablaHtml+='</tbody></table>';
+  $$('flujo-tabla').innerHTML=tablaHtml;
+  }catch(e){console.error('Error flujo caja:',e);$$('flujo-chart').innerHTML='<div style="padding:16px;color:var(--muted);font-size:12px;">No se pudo calcular el flujo</div>';}
 }
 
 async function actualizarRentaDashboard(){
