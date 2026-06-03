@@ -434,9 +434,11 @@ tr:hover td{background:var(--s2);}
 <div class="ov" id="m-confirm">
   <div class="cp">
     <div class="cp-t">Confirmar cobro</div>
-    <div class="cp-d">¿Confirmás que recibiste este pago? Al confirmar, el monto se acredita en la Caja USD y queda guardado para todos.</div>
+    <div class="cp-d">¿Confirmás que recibiste este pago? Podés modificar el monto si el cobro fue parcial.</div>
     <div class="cp-amt" id="cp-amt"></div>
     <div class="cp-meta" id="cp-meta"></div>
+    <div class="fg"><label class="fl">Monto cobrado (USD)</label><input class="fi mono" type="number" id="cp-monto" step="0.01" oninput="actualizarPreviewCobro()"></div>
+    <div id="cp-parcial" style="display:none;padding:8px 12px;background:var(--amber-lt,#fef3c7);border:1px solid var(--amber);border-radius:var(--r);font-size:12px;margin-bottom:8px;"></div>
     <div class="fg"><label class="fl">Fecha en que lo cobraste</label><input class="fi" type="date" id="cp-f"></div>
     <div class="fg"><label class="fl">Forma de cobro</label>
       <select class="fi" id="cp-fm"><option>Efectivo USD billete</option><option>Transferencia USD</option><option>Cheque</option><option>Crypto USDT</option></select>
@@ -830,16 +832,20 @@ async function cargarCobros(){
   const iconos={alquiler:'$',venta:'V'};
   $$('AG').innerHTML = data.length===0
     ? '<div style="padding:14px;color:var(--green);font-size:13px;">✓ Sin cobros pendientes</div>'
-    : data.map(c=>`
+    : data.map(c=>{
+      var cobrado=Number(c.monto_cobrado||0);
+      var pendiente=Number(c.monto||0)-cobrado;
+      var esParcial=cobrado>0&&pendiente>0;
+      return `
       <div class="ac ${colores[c.tipo]||'wrn'}" id="ac-${c.id}">
         <div class="ai" style="background:var(--${c.tipo==='alquiler'?'green':'blue'}-bg);color:var(--${c.tipo==='alquiler'?'green':'blue'});">${iconos[c.tipo]||'$'}</div>
         <div style="flex:1;">
           <div class="at">${c.concepto}</div>
-          <div class="ad">${c.origen||''} · ${fmtUSD(c.monto)}</div>
+          <div class="ad">${c.origen||''} · ${fmtUSD(c.monto)}${esParcial?' · <span style="color:var(--amber);">Cobrado parcial: '+fmtUSD(cobrado)+' · Pendiente: '+fmtUSD(pendiente)+'</span>':''}</div>
           <div class="adate" style="color:var(--amber);">Vence ${fmtFecha(c.fecha_pactada)} · ¿Cobrado?</div>
         </div>
-        <button class="btn btns btng" onclick="abrirConfirm('${c.id}')">Confirmar cobro</button>
-      </div>`).join('');
+        <button class="btn btns btng" onclick="abrirConfirm('${c.id}')">${esParcial?'Cobrar resto':'Confirmar cobro'}</button>
+      </div>`;}).join('');
   // Actualizar badge alarmas pendientes
   const urgentes = await sb.from('alarmas').select('id',{count:'exact'}).eq('resuelta',false);
   const n = urgentes.count||0;
@@ -930,18 +936,23 @@ async function cargarCobrosPage(){
   const hist = data.filter(c=>c.cobrado);
   $$('cobros-pend-lista').innerHTML = pend.length===0
     ? '<div style="padding:20px;text-align:center;color:var(--green);font-size:13px;">✓ Sin cobros pendientes</div>'
-    : pend.map(c=>`
-      <div class="card" style="margin-bottom:12px;">
-        <div class="ch"><div class="ct">${c.concepto}</div><span class="badge ba">Pendiente</span></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);">
+    : pend.map(c=>{
+      var cobrado=Number(c.monto_cobrado||0);
+      var pendienteM=Number(c.monto||0)-cobrado;
+      var esParcial=cobrado>0&&pendienteM>0;
+      return `
+      <div class="card" style="margin-bottom:12px;${esParcial?'border-left:3px solid var(--amber);':''}">
+        <div class="ch"><div class="ct">${c.concepto}</div><span class="badge ${esParcial?'ba':'ba'}">${esParcial?'Parcial ('+Math.round(cobrado/Number(c.monto)*100)+'%)':'Pendiente'}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(${esParcial?4:3},1fr);">
           <div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Proyecto</div><div style="font-weight:500;">${c.proyecto}</div></div>
-          <div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Monto</div><div style="font-weight:500;color:var(--green);" class="mono">${fmtUSD(c.monto)}</div></div>
-          <div style="padding:12px 16px;"><div class="ml">Vence</div><div style="font-weight:500;">${fmtFecha(c.fecha_pactada)}</div></div>
+          <div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Monto cuota</div><div style="font-weight:500;color:var(--green);" class="mono">${fmtUSD(c.monto)}</div></div>
+          ${esParcial?'<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Ya cobrado</div><div style="font-weight:500;color:var(--blue);" class="mono">'+fmtUSD(cobrado)+'</div></div>':''}
+          <div style="padding:12px 16px;"><div class="ml">${esParcial?'Pendiente':'Vence'}</div><div style="font-weight:500;${esParcial?'color:var(--amber);':''}">${esParcial?fmtUSD(pendienteM):fmtFecha(c.fecha_pactada)}</div></div>
         </div>
         <div style="padding:10px 14px;background:var(--s2);border-top:1px solid var(--border);">
-          <button class="btn btng" onclick="abrirConfirm('${c.id}')">Confirmar cobro → entra a caja</button>
+          <button class="btn btng" onclick="abrirConfirm('${c.id}')">${esParcial?'Cobrar resto ('+fmtUSD(pendienteM)+') → entra a caja':'Confirmar cobro → entra a caja'}</button>
         </div>
-      </div>`).join('');
+      </div>`;}).join('');
   $$('cobros-hist-tabla').innerHTML = hist.length===0
     ? '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Sin cobros confirmados todavía</div>'
     : `<table><thead><tr><th>Concepto</th><th>Proyecto</th><th>Monto</th><th>Cobrado el</th><th>Forma</th><th>Por</th></tr></thead><tbody>${
@@ -956,9 +967,30 @@ function abrirConfirm(id){
   const c = pendCobros.find(x=>x.id===id);
   if(!c)return;
   pendKey=id;
-  $$('cp-amt').textContent=fmtUSD(c.monto);
-  $$('cp-meta').innerHTML=`<b>Concepto:</b> ${c.concepto}<br><b>De:</b> ${c.origen||c.proyecto}<br><b>Fecha pactada:</b> ${fmtFecha(c.fecha_pactada)}`;
+  var pendiente=Number(c.monto||0)-Number(c.monto_cobrado||0);
+  $$('cp-amt').textContent=fmtUSD(c.monto)+(c.monto_cobrado>0?' (cobrado parcial: '+fmtUSD(c.monto_cobrado)+')':'');
+  $$('cp-meta').innerHTML=`<b>Concepto:</b> ${c.concepto}<br><b>De:</b> ${c.origen||c.proyecto}<br><b>Fecha pactada:</b> ${fmtFecha(c.fecha_pactada)}${c.monto_cobrado>0?'<br><b>Ya cobrado:</b> '+fmtUSD(c.monto_cobrado)+' · <b>Pendiente:</b> '+fmtUSD(pendiente):''}`;
+  $$('cp-monto').value=pendiente;
+  $$('cp-monto').max=pendiente;
+  $$('cp-parcial').style.display='none';
   $$('m-confirm').classList.add('open');
+}
+
+function actualizarPreviewCobro(){
+  var c=pendCobros.find(x=>x.id===pendKey);
+  if(!c)return;
+  var pendiente=Number(c.monto||0)-Number(c.monto_cobrado||0);
+  var ingresado=parseFloat($$('cp-monto').value)||0;
+  var el=$$('cp-parcial');
+  if(ingresado<pendiente&&ingresado>0){
+    var resto=pendiente-ingresado;
+    el.style.display='block';
+    el.innerHTML='⚠️ <b>Cobro parcial</b> — Cobrás '+fmtUSD(ingresado)+' de '+fmtUSD(pendiente)+'. Queda un saldo pendiente de <b>'+fmtUSD(resto)+'</b> en esta cuota.';
+    $$('btn-confirmar').textContent='Confirmar cobro parcial → '+fmtUSD(ingresado)+' a caja';
+  } else {
+    el.style.display='none';
+    $$('btn-confirmar').textContent='Confirmar cobro → entra a caja';
+  }
 }
 
 function abrirNuevoCobro(){
@@ -975,21 +1007,39 @@ async function ejecutarCobro(){
   const fecha=$$('cp-f').value;
   const forma=$$('cp-fm').value;
   const nota=$$('cp-n').value;
-  // 1. Marcar cobro como cobrado
-  const {error:e1} = await sb.from('cobros').update({
-    cobrado:true, fecha_cobro:fecha, forma_cobro:forma, nota:nota, confirmado_por:USUARIO
-  }).eq('id',pendKey);
+  const montoCobrado=parseFloat($$('cp-monto').value)||0;
+  if(montoCobrado<=0){toast('Ingresá el monto cobrado','err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
+  const pendiente=Number(c.monto||0)-Number(c.monto_cobrado||0);
+  const nuevoMontoCobrado=Number(c.monto_cobrado||0)+montoCobrado;
+  const esParcial=nuevoMontoCobrado<Number(c.monto);
+  // 1. Actualizar cobro
+  var updateData={
+    monto_cobrado:Math.round(nuevoMontoCobrado*100)/100,
+    confirmado_por:USUARIO
+  };
+  if(!esParcial){
+    // Cobro completo
+    updateData.cobrado=true;
+    updateData.fecha_cobro=fecha;
+    updateData.forma_cobro=forma;
+    updateData.nota=nota;
+  }
+  const {error:e1} = await sb.from('cobros').update(updateData).eq('id',pendKey);
   if(e1){toast('Error al guardar: '+e1.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
-  // 2. Registrar en caja
+  // 2. Registrar en caja el monto cobrado (no el total de la cuota)
   const {error:e2} = await sb.from('caja_movimientos').insert({
-    fecha:fecha, concepto:c.concepto+' · confirmado por '+USUARIO,
-    tipo:c.tipo, monto:c.monto, proyecto:c.proyecto,
+    fecha:fecha, concepto:c.concepto+(esParcial?' (parcial)':'')+' · confirmado por '+USUARIO,
+    tipo:c.tipo, monto:montoCobrado, proyecto:c.proyecto,
     forma:forma, nota:nota, confirmado_por:USUARIO
   });
   if(e2){toast('Error en caja: '+e2.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
   cm('m-confirm');
   btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;
-  toast('✓ Cobro confirmado: '+fmtUSD(c.monto)+' en caja','ok2');
+  if(esParcial){
+    toast('✓ Cobro parcial: '+fmtUSD(montoCobrado)+' en caja · Pendiente: '+fmtUSD(Number(c.monto)-nuevoMontoCobrado),'ok2');
+  } else {
+    toast('✓ Cobro completo: '+fmtUSD(montoCobrado)+' en caja','ok2');
+  }
   // Recargar todo
   await Promise.all([cargarSaldo(),cargarCobros()]);
   if($$('p-caja').classList.contains('active'))cargarMovimientos();
@@ -1285,6 +1335,15 @@ async function borrarMovCaja(id,concepto,monto){
 }
 
 async function sincronizarCobrosPendientes(){
+  // Fix fecha Radzinsky: corregir fecha_fin si está mal
+  var {data:radzCtr}=await sb.from('contratos').select('id,fecha_fin,nombre').eq('nombre','Nicolás Radzinsky').eq('activo',true);
+  if(radzCtr&&radzCtr.length>0){
+    var r=radzCtr[0];
+    if(!r.fecha_fin||r.fecha_fin!=='2029-05-31'){
+      await sb.from('contratos').update({fecha_inicio:'2026-06-01',fecha_fin:'2029-05-31'}).eq('id',r.id);
+      console.log('Fix: Radzinsky fecha_fin corregida a 2029-05-31');
+    }
+  }
   // Reparar cuotas de Fashion Collection: verificar que las 12 cuotas existan
   var {data:fashionCtr}=await sb.from('contratos').select('id').eq('nombre','Fashion Collection').eq('activo',true);
   if(fashionCtr&&fashionCtr.length>0){
