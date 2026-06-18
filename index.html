@@ -432,7 +432,7 @@ tr:hover td{background:var(--s2);}
 
 <!-- CONFIRM COBRO -->
 <div class="ov" id="m-confirm">
-  <div class="cp">
+  <div class="cp" style="max-height:90vh;overflow-y:auto;">
     <div class="cp-t">Confirmar cobro</div>
     <div class="cp-d">¿Confirmás que recibiste este pago? Podés modificar el monto si el cobro fue parcial.</div>
     <div class="cp-amt" id="cp-amt"></div>
@@ -1020,19 +1020,22 @@ async function ejecutarCobro(){
   const nuevoMontoCobrado=Number(c.monto_cobrado||0)+montoCobrado;
   const esParcial=nuevoMontoCobrado<Number(c.monto);
   // 1. Actualizar cobro
-  var updateData={
-    monto_cobrado:Math.round(nuevoMontoCobrado*100)/100,
-    confirmado_por:USUARIO
-  };
+  var updateData={confirmado_por:USUARIO};
+  try{updateData.monto_cobrado=Math.round(nuevoMontoCobrado*100)/100;}catch(e){}
   if(!esParcial){
-    // Cobro completo
     updateData.cobrado=true;
     updateData.fecha_cobro=fecha;
     updateData.forma_cobro=forma;
     updateData.nota=nota;
   }
   const {error:e1} = await sb.from('cobros').update(updateData).eq('id',pendKey);
-  if(e1){toast('Error al guardar: '+e1.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
+  if(e1){
+    // Si falla por monto_cobrado, intentar sin ese campo
+    delete updateData.monto_cobrado;
+    if(!esParcial) updateData.cobrado=true;
+    const {error:e1b}=await sb.from('cobros').update(updateData).eq('id',pendKey);
+    if(e1b){toast('Error al guardar: '+e1b.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
+  }
   const destino=$$('cp-destino').value;
   const entraACaja=(destino==='caja');
   // 2. Registrar en caja solo si destino es caja propia
