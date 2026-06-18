@@ -2773,7 +2773,7 @@ _fichaProyectoNombre=p.n;
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" id="btn-cargar-pago-ficha">+ Cargar pago</button><button class="btn btns" onclick="_fichaGastoProyecto='${p.n}';abrirGastoDesdeficha();" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">+ Gasto</button></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" id="btn-cargar-pago-ficha">+ Cargar pago</button><button class="btn btns" onclick="_fichaGastoProyecto='${p.n}';abrirGastoDesdeficha();" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">+ Gasto</button><button class="btn btns" onclick="om('contrato');setTimeout(function(){var _o=$$('ctr-obra');var _kw='${p.n}'.split(' ')[0];for(var i=0;i<_o.options.length;i++){if(_o.options[i].value.includes(_kw)){_o.value=_o.options[i].value;break;}}},100);" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);">+ Contrato</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
