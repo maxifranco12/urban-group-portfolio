@@ -443,6 +443,12 @@ tr:hover td{background:var(--s2);}
     <div class="fg"><label class="fl">Forma de cobro</label>
       <select class="fi" id="cp-fm"><option>Efectivo USD billete</option><option>Transferencia USD</option><option>Cheque</option><option>Crypto USDT</option></select>
     </div>
+    <div class="fg"><label class="fl">Destino de fondos</label>
+      <select class="fi" id="cp-destino">
+        <option value="caja">Caja USD Propia (aumenta caja)</option>
+        <option value="externo">Fondos Externos / Afuera (no impacta caja)</option>
+      </select>
+    </div>
     <div class="fg"><label class="fl">Nota (opcional)</label><input class="fi" type="text" id="cp-n" placeholder="Ej: me lo trajo en mano"></div>
     <div class="ma">
       <button class="btn" onclick="cm('m-confirm')">Cancelar</button>
@@ -973,6 +979,7 @@ function abrirConfirm(id){
   $$('cp-monto').value=pendiente;
   $$('cp-monto').max=pendiente;
   $$('cp-parcial').style.display='none';
+  $$('cp-destino').value='caja';
   $$('m-confirm').classList.add('open');
 }
 
@@ -1026,19 +1033,23 @@ async function ejecutarCobro(){
   }
   const {error:e1} = await sb.from('cobros').update(updateData).eq('id',pendKey);
   if(e1){toast('Error al guardar: '+e1.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
-  // 2. Registrar en caja el monto cobrado (no el total de la cuota)
-  const {error:e2} = await sb.from('caja_movimientos').insert({
-    fecha:fecha, concepto:c.concepto+(esParcial?' (parcial)':'')+' · confirmado por '+USUARIO,
-    tipo:c.tipo, monto:montoCobrado, proyecto:c.proyecto,
-    forma:forma, nota:nota, confirmado_por:USUARIO
-  });
-  if(e2){toast('Error en caja: '+e2.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
+  const destino=$$('cp-destino').value;
+  const entraACaja=(destino==='caja');
+  // 2. Registrar en caja solo si destino es caja propia
+  if(entraACaja){
+    const {error:e2} = await sb.from('caja_movimientos').insert({
+      fecha:fecha, concepto:c.concepto+(esParcial?' (parcial)':'')+' · confirmado por '+USUARIO,
+      tipo:c.tipo, monto:montoCobrado, proyecto:c.proyecto,
+      forma:forma, nota:nota, confirmado_por:USUARIO
+    });
+    if(e2){toast('Error en caja: '+e2.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
+  }
   cm('m-confirm');
   btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;
   if(esParcial){
-    toast('✓ Cobro parcial: '+fmtUSD(montoCobrado)+' en caja · Pendiente: '+fmtUSD(Number(c.monto)-nuevoMontoCobrado),'ok2');
+    toast('✓ Cobro parcial: '+fmtUSD(montoCobrado)+(entraACaja?' en caja':' (fondos externos)')+ ' · Pendiente: '+fmtUSD(Number(c.monto)-nuevoMontoCobrado),'ok2');
   } else {
-    toast('✓ Cobro completo: '+fmtUSD(montoCobrado)+' en caja','ok2');
+    toast('✓ Cobro completo: '+fmtUSD(montoCobrado)+(entraACaja?' en caja':' (fondos externos, no impacta caja)'),'ok2');
   }
   // Recargar todo
   await Promise.all([cargarSaldo(),cargarCobros()]);
@@ -2762,7 +2773,7 @@ _fichaProyectoNombre=p.n;
     <div class="back" onclick="$$('PL').style.display='block';$$('PF').style.display='none'">← Volver a proyectos</div>
     <div class="ph">
       <div><div class="pt">${p.n}</div><div class="ps">${p.t} · ${p.s}${p.ent&&p.ent!=='TBD'?' · Entrega '+p.ent:''}</div></div>
-      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" id="btn-cargar-pago-ficha">+ Cargar pago</button></div>
+      <div class="gap"><span class="badge ${p.ec}" style="font-size:12px;padding:5px 12px;">${p.e}</span><button class="btn btnp" id="btn-cargar-pago-ficha">+ Cargar pago</button><button class="btn btns" onclick="_fichaGastoProyecto='${p.n}';abrirGastoDesdeficha();" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">+ Gasto</button></div>
     </div>
     <div class="g2f">
       <div class="fc"><div class="fl2">Información</div>
@@ -2843,6 +2854,25 @@ _fichaProyectoNombre=p.n;
     $$('PF').innerHTML+=_chtml2;
     // Cargar adjuntos de cada contrato
     _ctrs.forEach(function(c){renderAdjuntosEnFicha(c.id);});
+  }
+  // Tabla de estado de locales para Giribone
+  if(id==='gi'){
+    var _giLocales={'Local 1':'Sin alquilar','Local 2':'Sin alquilar'};
+    var _giBadge={'Local 1':'bgr','Local 2':'bgr'};
+    _ctrs.forEach(function(ctr){
+      if(ctr.local&&_giLocales[ctr.local]!==undefined){
+        _giLocales[ctr.local]=ctr.tipo+' '+ctr.nombre+(ctr.monto_total?' — '+fmtUSD(ctr.monto_total):'');
+        _giBadge[ctr.local]=ctr.tipo==='Alquiler'?'bb':(ctr.tipo==='Venta'?'bg':'ba');
+      }
+    });
+    var _giHtml='<div class="card" style="margin-top:12px;"><div class="ch"><div class="ct">Estado de los 2 locales</div></div>'+
+      '<table><thead><tr><th>Local</th><th>Estado</th></tr></thead><tbody>';
+    ['Local 1','Local 2'].forEach(function(loc){
+      var bold=_giLocales[loc]!=='Sin alquilar'?'<b>'+loc+'</b>':loc;
+      _giHtml+='<tr><td>'+bold+'</td><td><span class="badge '+_giBadge[loc]+'">'+_giLocales[loc]+'</span></td></tr>';
+    });
+    _giHtml+='</tbody></table></div>';
+    $$('PF').innerHTML+=_giHtml;
   }
   var _pnombre=p?p.n:"";
   setTimeout(function(){
