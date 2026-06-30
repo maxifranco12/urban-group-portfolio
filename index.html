@@ -2040,12 +2040,26 @@ function abrirAdjuntarExistente(contratoId){
 async function chequearVencimientos(){
   var {data:contratos}=await sb.from('contratos').select('*').eq('activo',true);
   var {data:pagares}=await sb.from('pagares').select('*').eq('estado','vigente');
+  var {data:cobrosAll}=await sb.from('cobros').select('id,contrato_id,cobrado,monto,monto_cobrado');
   var hoy=new Date();
   hoy.setHours(0,0,0,0);
   var alertas=[];
+  // Agrupar cobros por contrato_id
+  var cobrosPorContrato={};
+  (cobrosAll||[]).forEach(function(c){
+    if(!c.contrato_id)return;
+    if(!cobrosPorContrato[c.contrato_id])cobrosPorContrato[c.contrato_id]=[];
+    cobrosPorContrato[c.contrato_id].push(c);
+  });
   // Contratos
   (contratos||[]).forEach(function(c){
     if(!c.fecha_fin)return;
+    // Verificar si TODOS los cobros están saldados
+    var cobrosDelContrato=cobrosPorContrato[c.id]||[];
+    if(cobrosDelContrato.length>0){
+      var todosCobrados=cobrosDelContrato.every(function(cb){return cb.cobrado===true;});
+      if(todosCobrados)return; // Contrato cumplido, no alertar
+    }
     var vence=new Date(c.fecha_fin+'T12:00:00');
     var diffMs=vence-hoy;
     var diffDias=Math.ceil(diffMs/(1000*60*60*24));
