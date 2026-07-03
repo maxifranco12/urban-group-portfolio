@@ -2207,26 +2207,39 @@ async function descartarAlertaVenc(contratoId){
 }
 
 async function reclasificarParqueAvellaneda(){
+  try{
   var {data:gPA}=await sb.from('gastos').select('id,monto_usd,descripcion,categoria,tipo').ilike('proyecto','%Parque Avellaneda%');
-  if(!gPA||!gPA.length)return;
+  if(!gPA)gPA=[];
   // Si ya hay alguno con compra_inmueble, ya se corrió
   if(gPA.some(function(g){return g.categoria==='compra_inmueble';}))return;
-  // Clasificar por monto y descripción
+  // Verificar si el gasto de 10k (anticipo/seña) existe
+  var tiene10k=gPA.some(function(g){return Math.round(Number(g.monto_usd))===10000;});
+  if(!tiene10k){
+    // Crear el gasto de 10k como compra_inmueble
+    await sb.from('gastos').insert({
+      proyecto:'Parque Avellaneda',tipo:'Otro',monto_usd:10000,moneda:'USD',
+      origen_fondos:'Fondos Externos',inversor:'Urban Group',
+      descripcion:'Refuerzo con caja Urban',pagado:true,sale_de_caja:false,
+      categoria:'compra_inmueble',fecha:'2025-01-01'
+    });
+    console.log('PA: Creado gasto 10k como compra_inmueble');
+  }
+  // Recargar gastos
+  var {data:gPA2}=await sb.from('gastos').select('id,monto_usd,descripcion,categoria').ilike('proyecto','%Parque Avellaneda%');
+  if(!gPA2)return;
+  // Clasificar cada gasto
+  var montosCompra=[10000,20000,30000,200000,490000];
   var cambios=0;
-  for(var i=0;i<gPA.length;i++){
-    var g=gPA[i];
+  for(var i=0;i<gPA2.length;i++){
+    var g=gPA2[i];
     var m=Math.round(Number(g.monto_usd));
-    var desc=(g.descripcion||'').toLowerCase();
-    // Montos de compra: 10000, 20000, 30000, 200000, 490000
-    var esCompra=(m===10000||m===20000||m===30000||m===200000||m===490000)&&
-      (desc.includes('refuerzo')||desc.includes('compra')||desc==='');
-    if(esCompra){
+    if(montosCompra.includes(m)){
       await sb.from('gastos').update({categoria:'compra_inmueble'}).eq('id',g.id);
       cambios++;
     }
-    // Los demás quedan como 'gasto' (default)
   }
   if(cambios>0)console.log('Reclasificación PA: '+cambios+' gastos → compra_inmueble');
+  }catch(e){console.error('Error reclasificando PA:',e);}
 }
 
 async function migrarFashionSiNoExiste(){
