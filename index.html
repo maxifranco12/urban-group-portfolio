@@ -590,48 +590,61 @@ function editarProyecto(id){
   if(!p) return;
   _editProyId = id;
   $$('ep-estado').value = p.e || 'En obra';
-  $$('ep-m2').value = p.m2 || '';
+  $$('ep-m2').value = (typeof p.m2==='number')?p.m2:'';
   $$('ep-entrega').value = p.ent || '';
   $$('ep-renta').value = p.r || '';
   $$('ep-inv').value = p.inv || '';
   $$('ep-tipo').value = p.t || '';
   $$('ep-socios').value = p.s || '';
+  // Guardar valores originales para detectar cambios
+  window._epOriginal={
+    estado:p.e||'', m2:(typeof p.m2==='number')?String(p.m2):'',
+    entrega:p.ent||'', renta:p.r||'', inv:p.inv||'',
+    tipo:p.t||'', socios:p.s||''
+  };
   $$('m-editar-proyecto').classList.add('open');
 }
 
 async function guardarEdicionProyecto(){
   const p = PR.find(x=>x.id===_editProyId);
   if(!p) return;
-  const nuevoEstado = $$('ep-estado').value;
-  const nuevoM2 = parseFloat($$('ep-m2').value) || p.m2;
-  const nuevaEntrega = $$('ep-entrega').value || null;
-  const nuevaRenta = $$('ep-renta').value || null;
-  const nuevaInv = $$('ep-inv').value || p.inv;
-  const nuevoTipo = $$('ep-tipo').value || p.t;
-  const nuevosSocios = $$('ep-socios').value || p.s;
+  const orig=window._epOriginal||{};
   const badgeMap = {'En obra':'bb','En alquiler':'bg','Uso propio':'bgr','En constr.':'bb','Seña — en proceso':'ba','Pagado':'bgr','Local 2 vendido':'bg'};
-  // Guardar en Supabase
-  const {error} = await sb.from('proyectos').update({
-    estado: nuevoEstado,
-    estado_badge: badgeMap[nuevoEstado]||'bb',
-    m2: nuevoM2,
-    entrega: nuevaEntrega,
-    renta: nuevaRenta,
-    inv_usd: nuevaInv,
-    tipo: nuevoTipo,
-    socios: nuevosSocios,
-    updated_at: new Date().toISOString()
-  }).eq('id', _editProyId);
+  // Solo construir payload con campos que cambiaron
+  var payload={updated_at:new Date().toISOString()};
+  var nuevoEstado=$$('ep-estado').value;
+  if(nuevoEstado!==orig.estado){
+    payload.estado=nuevoEstado;
+    payload.estado_badge=badgeMap[nuevoEstado]||'bb';
+  }
+  var m2Val=$$('ep-m2').value.trim();
+  if(m2Val!==orig.m2){
+    var m2Num=parseFloat(m2Val);
+    if(!isNaN(m2Num))payload.m2=m2Num;
+    else if(m2Val==='')payload.m2=null;
+    // Si es "—" u otro texto no parseable, no enviar
+  }
+  var entVal=$$('ep-entrega').value.trim();
+  if(entVal!==orig.entrega)payload.entrega=entVal||null;
+  var rentaVal=$$('ep-renta').value.trim();
+  if(rentaVal!==orig.renta)payload.renta=rentaVal||null;
+  var invVal=$$('ep-inv').value.trim();
+  if(invVal!==orig.inv)payload.inv_usd=invVal||null;
+  var tipoVal=$$('ep-tipo').value.trim();
+  if(tipoVal!==orig.tipo)payload.tipo=tipoVal||null;
+  var sociosVal=$$('ep-socios').value.trim();
+  if(sociosVal!==orig.socios)payload.socios=sociosVal||null;
+  // Guardar en Supabase (solo campos dirty)
+  const {error} = await sb.from('proyectos').update(payload).eq('id', _editProyId);
   if(error){ toast('Error al guardar: '+error.message,'err'); return; }
-  // Actualizar en memoria
-  p.e = nuevoEstado;
-  p.ec = badgeMap[nuevoEstado]||'bb';
-  p.m2 = nuevoM2;
-  p.ent = nuevaEntrega;
-  p.r = nuevaRenta;
-  p.inv = nuevaInv;
-  p.t = nuevoTipo;
-  p.s = nuevosSocios;
+  // Actualizar en memoria solo lo que cambió
+  if(payload.estado){p.e=payload.estado;p.ec=badgeMap[payload.estado]||'bb';}
+  if(payload.m2!==undefined)p.m2=payload.m2;
+  if(payload.entrega!==undefined)p.ent=payload.entrega;
+  if(payload.renta!==undefined)p.r=payload.renta;
+  if(payload.inv_usd!==undefined)p.inv=payload.inv_usd;
+  if(payload.tipo!==undefined)p.t=payload.tipo;
+  if(payload.socios!==undefined)p.s=payload.socios;
   cm('m-editar-proyecto');
   toast('Proyecto actualizado ✓','ok2');
   rDT(); rc();
@@ -2194,24 +2207,26 @@ async function descartarAlertaVenc(contratoId){
 }
 
 async function reclasificarParqueAvellaneda(){
-  // One-time: clasificar gastos de PA como compra_inmueble o gasto
-  var {data:gPA}=await sb.from('gastos').select('id,monto_usd,descripcion,categoria').ilike('proyecto','%Parque Avellaneda%');
+  var {data:gPA}=await sb.from('gastos').select('id,monto_usd,descripcion,categoria,tipo').ilike('proyecto','%Parque Avellaneda%');
   if(!gPA||!gPA.length)return;
   // Si ya hay alguno con compra_inmueble, ya se corrió
   if(gPA.some(function(g){return g.categoria==='compra_inmueble';}))return;
-  // Montos de compra de inmueble: 10000, 20000, 30000, 200000, 490000
-  var montosCompra=[10000,20000,30000,200000,490000];
-  var usados=[];
+  // Clasificar por monto y descripción
+  var cambios=0;
   for(var i=0;i<gPA.length;i++){
     var g=gPA[i];
-    var m=Number(g.monto_usd);
-    var idx=montosCompra.indexOf(m);
-    if(idx!==-1&&!usados.includes(idx)){
+    var m=Math.round(Number(g.monto_usd));
+    var desc=(g.descripcion||'').toLowerCase();
+    // Montos de compra: 10000, 20000, 30000, 200000, 490000
+    var esCompra=(m===10000||m===20000||m===30000||m===200000||m===490000)&&
+      (desc.includes('refuerzo')||desc.includes('compra')||desc==='');
+    if(esCompra){
       await sb.from('gastos').update({categoria:'compra_inmueble'}).eq('id',g.id);
-      usados.push(idx);
+      cambios++;
     }
+    // Los demás quedan como 'gasto' (default)
   }
-  console.log('Reclasificación PA: '+usados.length+' gastos marcados como compra_inmueble');
+  if(cambios>0)console.log('Reclasificación PA: '+cambios+' gastos → compra_inmueble');
 }
 
 async function migrarFashionSiNoExiste(){
