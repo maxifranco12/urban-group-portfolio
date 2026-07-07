@@ -259,14 +259,6 @@ tr:hover td{background:var(--s2);}
     </div>
     <div id="flujo-chart" style="padding:0 12px 12px;"><div class="loading"><div class="spinner"></div>Calculando…</div></div>
   </div>
-  <div class="sl">Rentabilidad del portfolio</div>
-  <div class="card" id="RENT-RANKING" style="margin-bottom:16px;padding:0;overflow:hidden;">
-    <div style="padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:13px;font-weight:500;">Rendimiento por proyecto</div>
-      <div style="font-size:11px;color:var(--muted);">Ordenado por yield anual</div>
-    </div>
-    <div id="rent-chart" style="padding:0 12px 12px;"><div class="loading"><div class="spinner"></div>Calculando…</div></div>
-  </div>
   <div class="sl">Proyectos</div>
   <div class="card"><div class="tw" id="DT" style="overflow-x:auto;"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
 </div>
@@ -806,7 +798,6 @@ async function login(nombre,ini,rol){
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
   chequearVencimientos().catch(e=>console.log("vencimientos:",e));
   calcularFlujoCaja().catch(e=>console.log("flujo:",e));
-  calcularRentabilidadPortfolio().catch(e=>console.log("rentabilidad:",e));
   $$('dash-sub').textContent='Resumen del portfolio · ' + new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 }
 
@@ -2426,162 +2417,6 @@ async function calcularFlujoCaja(){
   }catch(e){console.error('Error flujo caja:',e);$$('flujo-chart').innerHTML='<div style="padding:16px;color:var(--muted);font-size:12px;">No se pudo calcular el flujo</div>';}
 }
 
-async function calcularRentabilidadPortfolio(){
-  try{
-  var [contratosRes,cobrosRes,gastosRes]=await Promise.all([
-    sb.from('contratos').select('*').eq('activo',true),
-    sb.from('cobros').select('monto,cobrado,proyecto,contrato_id,fecha_cobro'),
-    sb.from('gastos').select('proyecto,monto_usd')
-  ]);
-  var contratos=contratosRes.data||[];
-  var cobros=cobrosRes.data||[];
-  var gastos=gastosRes.data||[];
-  // Separar contratos por tipo
-  var alquileres=contratos.filter(function(c){return c.tipo==='Alquiler';});
-  var ventas=contratos.filter(function(c){return c.tipo!=='Alquiler';});
-  // Renta mensual SOLO de alquileres
-  var rentaPorProy={};
-  alquileres.forEach(function(c){
-    if(!c.a1_monto)return;
-    var kw=(c.obra||'').toLowerCase();
-    PR.forEach(function(p){
-      if(p.n.toLowerCase().includes(kw)||kw.includes(p.n.split(' ')[0].toLowerCase())){
-        if(!rentaPorProy[p.id])rentaPorProy[p.id]=0;
-        rentaPorProy[p.id]+=Number(c.a1_monto);
-      }
-    });
-  });
-  // Ingreso por ventas en cuotas (recupero de capital)
-  var ventaPorProy={};
-  ventas.forEach(function(c){
-    if(!c.a1_monto)return;
-    var kw=(c.obra||'').toLowerCase();
-    PR.forEach(function(p){
-      if(p.n.toLowerCase().includes(kw)||kw.includes(p.n.split(' ')[0].toLowerCase())){
-        if(!ventaPorProy[p.id])ventaPorProy[p.id]=0;
-        ventaPorProy[p.id]+=Number(c.a1_monto);
-      }
-    });
-  });
-  // Total cobrado separado alquiler vs venta
-  var cobAlqPorProy={},cobVtaPorProy={};
-  cobros.forEach(function(c){
-    if(!c.cobrado)return;
-    var proy=(c.proyecto||'').toLowerCase();
-    var tipo=(c.tipo||'').toLowerCase();
-    var esVenta=tipo.includes('venta');
-    PR.forEach(function(p){
-      var kw=p.n.split(' ')[0].toLowerCase();
-      if(proy.includes(kw)){
-        if(esVenta){if(!cobVtaPorProy[p.id])cobVtaPorProy[p.id]=0;cobVtaPorProy[p.id]+=Number(c.monto||0);}
-        else{if(!cobAlqPorProy[p.id])cobAlqPorProy[p.id]=0;cobAlqPorProy[p.id]+=Number(c.monto||0);}
-      }
-    });
-  });
-  // Calcular inversión por proyecto
-  var invPorProy={};
-  PR.forEach(function(p){
-    var invMatch=p.inv?p.inv.match(/[\d.,]+/):null;
-    var invNum=invMatch?parseFloat(invMatch[0].replace(/\./g,'').replace(',','.')):0;
-    invPorProy[p.id]=invNum;
-  });
-  // Armar métricas por proyecto
-  var metricas=[];
-  PR.forEach(function(p){
-    var inv=invPorProy[p.id]||0;
-    var rentaMes=rentaPorProy[p.id]||0;
-    var ventaMes=ventaPorProy[p.id]||0;
-    var rentaAnual=rentaMes*12;
-    var cobradoAlq=cobAlqPorProy[p.id]||0;
-    var cobradoVta=cobVtaPorProy[p.id]||0;
-    var totalCobrado=cobradoAlq+cobradoVta;
-    if(inv<=0)return;
-    var yieldAnual=inv>0?(rentaAnual/inv*100):0;
-    var paybackAnios=rentaAnual>0?(inv/rentaAnual):null;
-    var roiTotal=inv>0?((totalCobrado/inv)*100):0;
-    metricas.push({
-      id:p.id, nombre:p.n, estado:p.e, ec:p.ec,
-      inv:inv, rentaMes:rentaMes, ventaMes:ventaMes,
-      rentaAnual:rentaAnual, cobradoAlq:cobradoAlq,
-      cobradoVta:cobradoVta, totalCobrado:totalCobrado,
-      yield:yieldAnual, paybackAnios:paybackAnios, roiTotal:roiTotal,
-      tieneRenta:rentaMes>0, tieneVenta:ventaMes>0
-    });
-  });
-  // Ordenar por yield descendente (los que generan renta primero)
-  metricas.sort(function(a,b){return b.yield-a.yield;});
-  // Guardar para usar en fichas
-  window._metricasPortfolio=metricas;
-  // Render ranking en dashboard
-  var maxYield=Math.max.apply(null,metricas.map(function(m){return m.yield;}));
-  if(maxYield<=0)maxYield=1;
-  var chartEl=$$('rent-chart');
-  if(!metricas.length){chartEl.innerHTML='<div style="padding:16px;color:var(--muted);font-size:12px;">Sin datos de rentabilidad</div>';return;}
-  var html='';
-  metricas.forEach(function(m){
-    var barWidth=m.tieneRenta?Math.round((m.yield/maxYield)*100):0;
-    var barColor=m.yield>=15?'#16a34a':m.yield>=8?'#2563eb':m.yield>0?'#d97706':'var(--border)';
-    var detalle=m.tieneRenta?fmtUSD(m.rentaMes)+'/mes':(m.tieneVenta?'Venta en cuotas':'—');
-    html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 8px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="VF(\''+m.id+'\')">'+
-      '<div style="width:140px;min-width:140px;"><div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+m.nombre+'</div><div style="font-size:10px;color:var(--muted);">'+fmtUSD(m.inv)+'</div></div>'+
-      '<div style="flex:1;position:relative;height:24px;background:var(--s2);border-radius:4px;overflow:hidden;">'+
-        '<div style="height:100%;width:'+barWidth+'%;background:'+barColor+';border-radius:4px;transition:width .5s;"></div>'+
-        '<div style="position:absolute;top:0;left:8px;right:8px;height:100%;display:flex;align-items:center;justify-content:space-between;font-size:10px;">'+
-          '<span style="font-weight:500;color:'+(barWidth>30?'#fff':'var(--text)')+';">'+(m.tieneRenta?m.yield.toFixed(1)+'% yield':(m.tieneVenta?'Venta':'Sin ingresos'))+'</span>'+
-          '<span style="color:'+(barWidth>60?'#fff':'var(--muted)')+';">'+detalle+'</span>'+
-        '</div>'+
-      '</div>'+
-      '<div style="width:80px;min-width:80px;text-align:right;">'+
-        (m.tieneRenta?'<div style="font-size:11px;font-weight:500;color:'+barColor+';">'+m.yield.toFixed(1)+'%</div><div style="font-size:9px;color:var(--muted);">'+(m.paybackAnios?m.paybackAnios.toFixed(1)+' años':'—')+'</div>':
-        (m.tieneVenta?'<div style="font-size:10px;color:var(--amber);">Recupero</div><div style="font-size:9px;color:var(--muted);">'+m.roiTotal.toFixed(0)+'% cobrado</div>':
-        '<span class="badge bgr" style="font-size:9px;">'+m.estado+'</span>'))+
-      '</div>'+
-    '</div>';
-  });
-  // Resumen total portfolio
-  var totalInv=metricas.reduce(function(s,m){return s+m.inv;},0);
-  var totalRentaMes=metricas.reduce(function(s,m){return s+m.rentaMes;},0);
-  var totalRentaAnual=totalRentaMes*12;
-  var yieldPortfolio=totalInv>0?(totalRentaAnual/totalInv*100):0;
-  var totalCobAlq=metricas.reduce(function(s,m){return s+m.cobradoAlq;},0);
-  var totalCobVta=metricas.reduce(function(s,m){return s+m.cobradoVta;},0);
-  html+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 8px;background:var(--s2);font-size:11px;border-radius:0 0 var(--rl) var(--rl);">'+
-    '<div><span style="color:var(--muted);">Invertido:</span> <span class="mono" style="font-weight:500;">'+fmtUSD(totalInv)+'</span></div>'+
-    '<div><span style="color:var(--muted);">Renta alq:</span> <span class="mono" style="font-weight:500;color:var(--green);">'+fmtUSD(totalRentaMes)+'/mes</span></div>'+
-    '<div><span style="color:var(--muted);">Yield alq:</span> <span class="mono" style="font-weight:500;color:var(--blue);">'+yieldPortfolio.toFixed(1)+'%</span></div>'+
-    '<div><span style="color:var(--muted);">Cobrado alq:</span> <span class="mono" style="font-weight:500;">'+fmtUSD(totalCobAlq)+'</span></div>'+
-    (totalCobVta>0?'<div><span style="color:var(--muted);">Recupero ventas:</span> <span class="mono" style="font-weight:500;color:var(--amber);">'+fmtUSD(totalCobVta)+'</span></div>':'')+
-  '</div>';
-  chartEl.innerHTML=html;
-  }catch(e){console.error('Error rentabilidad:',e);}
-}
-
-function renderRentabilidadFicha(proyId){
-  var m=(window._metricasPortfolio||[]).find(function(x){return x.id===proyId;});
-  if(!m)return '';
-  if(!m.tieneRenta&&!m.tieneVenta)return '<div class="card" style="margin-top:12px;"><div class="ch"><div class="ct">Rentabilidad</div></div><div style="padding:16px;font-size:12px;color:var(--muted);text-align:center;">Este proyecto no genera ingresos actualmente</div></div>';
-  var yieldColor=m.yield>=15?'var(--green)':m.yield>=8?'var(--blue)':m.yield>0?'var(--amber)':'var(--muted)';
-  var html='<div class="card" style="margin-top:12px;"><div class="ch"><div class="ct">Rentabilidad</div>';
-  if(m.tieneRenta)html+='<span class="badge" style="background:'+yieldColor+'22;color:'+yieldColor+';font-size:12px;">Yield '+m.yield.toFixed(1)+'%</span>';
-  if(m.tieneVenta&&!m.tieneRenta)html+='<span class="badge ba" style="font-size:12px;">Venta en cuotas</span>';
-  html+='</div>';
-  if(m.tieneRenta){
-    html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Yield anual</div><div style="font-size:18px;font-weight:500;color:'+yieldColor+';font-family:\'DM Mono\',monospace;margin-top:4px;">'+m.yield.toFixed(1)+'%</div><div style="font-size:9px;color:var(--muted);">Solo alquileres</div></div>'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Renta mensual</div><div style="font-size:18px;font-weight:500;color:var(--green);font-family:\'DM Mono\',monospace;margin-top:4px;">'+fmtUSD(m.rentaMes)+'</div></div>'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Payback</div><div style="font-size:18px;font-weight:500;font-family:\'DM Mono\',monospace;margin-top:4px;">'+(m.paybackAnios?m.paybackAnios.toFixed(1)+'<span style="font-size:11px;color:var(--muted);"> años</span>':'—')+'</div></div>'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Cobrado alq.</div><div style="font-size:18px;font-weight:500;color:var(--green);font-family:\'DM Mono\',monospace;margin-top:4px;">'+fmtUSD(m.cobradoAlq)+'</div></div>'+
-    '</div>';
-  }
-  if(m.tieneVenta){
-    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);'+(m.tieneRenta?'margin-top:1px;':'')+'">'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Recupero por ventas</div><div style="font-size:18px;font-weight:500;color:var(--amber);font-family:\'DM Mono\',monospace;margin-top:4px;">'+fmtUSD(m.cobradoVta)+'</div></div>'+
-      '<div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">% del invertido</div><div style="font-size:18px;font-weight:500;font-family:\'DM Mono\',monospace;margin-top:4px;">'+m.roiTotal.toFixed(1)+'%</div></div>'+
-    '</div>';
-  }
-  html+='</div>';
-  return html;
-}
 
 async function actualizarRentaDashboard(){
   var totalMensual=0;
@@ -3127,9 +2962,6 @@ _fichaProyectoNombre=p.n;
     // Cargar adjuntos de cada contrato
     _ctrs.forEach(function(c){renderAdjuntosEnFicha(c.id);});
   }
-  // Panel de rentabilidad
-  var _rentHtml=renderRentabilidadFicha(id);
-  if(_rentHtml)$$('PF').innerHTML+=_rentHtml;
   // Tabla de estado de locales para Giribone
   if(id==='gi'){
     var _giLocales={'Local 1':'Sin alquilar','Local 2':'Sin alquilar'};
