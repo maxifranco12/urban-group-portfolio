@@ -1882,6 +1882,7 @@ async function marcarPagareCobrado(id){
   await sb.from('pagares').update({estado:'cobrado',fecha_cobro:new Date().toISOString().split('T')[0]}).eq('id',id);
   toast('Pagaré marcado como cobrado ✓','ok2');
   cargarPagaresPage();
+  chequearVencimientos().catch(function(){});
 }
 
 async function borrarPagare(id,nombre){
