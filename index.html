@@ -1248,7 +1248,11 @@ async function guardarGasto(){
     var orig=window._gastoEditOriginal||{};
     var viejoSaleDeCaja=(orig.sale_de_caja===true||orig.sale_de_caja==='true');
     var {error}=await sb.from('gastos').update(gastoData).eq('id',editId);
-    if(error){toast('Error: '+error.message,'err');return;}
+    if(error&&error.message&&error.message.includes('categoria')){
+      delete gastoData.categoria;
+      var {error:e2}=await sb.from('gastos').update(gastoData).eq('id',editId);
+      if(e2){toast('Error: '+e2.message,'err');return;}
+    } else if(error){toast('Error: '+error.message,'err');return;}
     // Actualizar caja según cambio de origen
     var concepto=gastoData.tipo+' — '+gastoData.proyecto+(gastoData.descripcion?' ('+gastoData.descripcion+')':'');
     if(viejoSaleDeCaja&&!saleDeCaja){
@@ -1279,7 +1283,12 @@ async function guardarGasto(){
     if($$('p-gastos').classList.contains('active'))cargarGastos();
   } else {
     // === MODO CREACIÓN ===
-    const {data:_gInsData, error} = await sb.from('gastos').insert(gastoData).select();
+    var {data:_gInsData, error} = await sb.from('gastos').insert(gastoData).select();
+    if(error&&error.message&&error.message.includes('categoria')){
+      delete gastoData.categoria;
+      var r2=await sb.from('gastos').insert(gastoData).select();
+      _gInsData=r2.data;error=r2.error;
+    }
     if(error){toast('Error: '+error.message,'err');return;}
     if(saleDeCaja){
       var _gId=(_gInsData&&_gInsData[0])?_gInsData[0].id:null;
