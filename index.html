@@ -239,8 +239,8 @@ tr:hover td{background:var(--s2);}
     </div>
   </div>
   <div class="mg g5">
-    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">Total invertido</div><div class="mv mono">U$D 3,17M</div><div class="ms">10 proyectos</div></div>
-    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">M² en cartera</div><div class="mv mono">3.132 m²</div><div class="ms">propios + en obra</div></div>
+    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">Total invertido</div><div class="mv mono" id="dash-inv">—</div><div class="ms" id="dash-inv-sub">cargando…</div></div>
+    <div class="mc ab" onclick="nav(document.querySelector('[data-page=proyectos]'))"><div class="ml">M² en cartera</div><div class="mv mono" id="dash-m2">—</div><div class="ms" id="dash-m2-sub">cargando…</div></div>
     <div class="mc ag" onclick="nav(document.querySelector('[data-page=cobros]'))"><div class="ml">Renta mensual</div><div class="mv mono" id="dash-renta" style="color:var(--green);">—</div><div class="ms" id="dash-renta-sub">cargando…</div></div>
     <div class="mc ag" onclick="nav(document.querySelector('[data-page=caja]'))"><div class="ml">Caja USD</div><div class="mv mono" id="m-saldo" style="color:var(--blue);"><div class="spinner" style="display:inline-block;"></div></div><div class="ms">confirmado</div></div>
     <div class="mc ar" onclick="nav(document.querySelector('[data-page=alarmas]'))"><div class="ml">Alarmas</div><div class="mv mono" id="m-alarm" style="color:var(--red);">—</div><div class="ms" id="m-alarm-sub">cargando…</div></div>
@@ -693,7 +693,7 @@ async function borrarCuota(id, nro, proyecto){
   toast('Cuota '+nro+' eliminada','ok');
   const p = PR.find(p=>p.n===proyecto);
   if(p && p.c > 0) p.c--;
-  actualizarContadoresCuotas().catch(()=>{}); actualizarInvertidoReal().catch(()=>{}); rDT(); rc();
+  actualizarContadoresCuotas().catch(()=>{}); actualizarInvertidoReal().catch(()=>{}); rDT(); rc(); calcularKPIsDashboard();
 }
 
 // ═══════════════════════════════════════════════════
@@ -794,7 +794,7 @@ async function login(nombre,ini,rol){
   await Promise.all([cargarSaldo(),cargarCobros(),cargarAlarmas()]);
   await sincronizarCobrosPendientes();
   actualizarContadoresCuotas().catch(e=>console.log("contadores:",e));
-  actualizarInvertidoReal().catch(e=>console.log("invertido:",e));
+  actualizarInvertidoReal().catch(e=>console.log("invertido:",e)).then(function(){calcularKPIsDashboard();});
   actualizarRentaDashboard().catch(e=>console.log("renta:",e));
   chequearVencimientos().catch(e=>console.log("vencimientos:",e));
   calcularFlujoCaja().catch(e=>console.log("flujo:",e));
@@ -2702,6 +2702,29 @@ async function resolverAlarma(id,btn){
 // ═══════════════════════════════════════════════════
 function bcol(p){return{bb:'var(--blue)',bg:'var(--green)',ba:'var(--amber)',bgr:'var(--muted)'}[p.ec]||'var(--blue)';}
 function pct(p){return p.tc?Math.round(p.c/p.tc*100):(p.c?60:0);}
+
+function calcularKPIsDashboard(){
+  var totalInv=0, totalM2=0, cantProy=PR.length;
+  PR.forEach(function(p){
+    // Total invertido: parsear p.inv (ej: "U$D 192.466,37")
+    if(p.inv){
+      var match=p.inv.match(/[\d.,]+/);
+      if(match){
+        var num=parseFloat(match[0].replace(/\./g,'').replace(',','.'));
+        if(!isNaN(num))totalInv+=num;
+      }
+    }
+    // M²: sumar solo si es número
+    if(typeof p.m2==='number')totalM2+=p.m2;
+  });
+  // Formatear Total invertido
+  var invStr=totalInv>=1000000?'U$D '+( totalInv/1000000).toFixed(2).replace('.',',')+'M':fmtUSD(totalInv);
+  $$('dash-inv').textContent=invStr;
+  $$('dash-inv-sub').textContent=cantProy+' proyectos';
+  // M²
+  $$('dash-m2').textContent=totalM2.toLocaleString('es-AR')+' m²';
+  $$('dash-m2-sub').textContent='propios + en obra';
+}
 
 function rDT(){
   $$('DT').innerHTML=`<table><thead><tr><th>Proyecto</th><th>Socios</th><th>Invertido</th><th>Progreso</th><th>Estado</th><th></th></tr></thead><tbody>${
