@@ -547,16 +547,19 @@ tr:hover td{background:var(--s2);}
   <div class="fg"><label class="fl">Local</label><select class="fi" id="ctr-local"><option>Local 1</option><option>Local 2</option><option>Local 3</option><option>Local 4</option><option>UF2</option><option>Otro</option></select></div></div>
   <div class="fg"><label class="fl">Inquilino / Contrato</label><input class="fi" type="text" id="ctr-nombre" placeholder="Ej: Nicolás Radzinsky, Erra"></div>
   <div class="fg"><label class="fl">Tipo</label><select class="fi" id="ctr-tipo"><option>Alquiler</option><option>Venta en cuotas</option><option>Concesión</option><option>Comodato</option><option>Otro</option></select></div>
-  <div class="frow"><div class="fg"><label class="fl">Moneda</label><select class="fi" id="ctr-moneda" onchange="actualizarLabelsMoneda()"><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
-  <div class="fg"><label class="fl">Ajuste</label><select class="fi" id="ctr-ajuste" onchange="$$('ctr-periodicidad-wrap').style.display=this.value!=='sin_ajuste'?'block':'none'"><option value="sin_ajuste">Sin ajuste</option><option value="ipc">IPC</option><option value="otro">Otro índice</option></select></div></div>
-  <div id="ctr-periodicidad-wrap" style="display:none;"><div class="fg"><label class="fl">Periodicidad del ajuste</label><select class="fi" id="ctr-periodicidad"><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div></div>
+  <div class="frow"><div class="fg"><label class="fl">Ajuste</label><select class="fi" id="ctr-ajuste" onchange="$$('ctr-ajuste-wrap').style.display=this.value!=='sin_ajuste'?'block':'none'"><option value="sin_ajuste">Sin ajuste</option><option value="ipc">IPC</option><option value="otro">Otro índice</option></select></div>
+  <div class="fg" id="ctr-ajuste-wrap" style="display:none;"><label class="fl">Periodicidad</label><select class="fi" id="ctr-periodicidad"><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div></div>
+  <div id="ctr-ajuste-aplica-wrap" style="display:none;"><div class="fg"><label class="fl">Ajuste aplica a</label><select class="fi" id="ctr-ajuste-aplica"><option value="ambas">Ambas monedas</option><option value="USD">Solo USD</option><option value="ARS">Solo ARS</option></select></div></div>
   <div class="frow"><div class="fg"><label class="fl">Fecha inicio</label><input class="fi" type="date" id="ctr-inicio"></div><div class="fg"><label class="fl">Fecha fin</label><input class="fi" type="date" id="ctr-fin"></div></div>
   <div style="margin-top:10px;padding:12px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);">
-    <div style="font-size:12px;font-weight:500;margin-bottom:8px;">Detalle por año</div>
-    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="1">Año 1 — USD/mes</label><input class="fi" type="number" id="ctr-a1-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a1-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
-    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="2">Año 2 — USD/mes</label><input class="fi" type="number" id="ctr-a2-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a2-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
-    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="3">Año 3 — USD/mes</label><input class="fi" type="number" id="ctr-a3-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a3-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;font-weight:500;"><span>Total contrato</span><span class="mono" id="ctr-total-display">U$D 0</span></div>
+    <div style="font-size:12px;font-weight:500;margin-bottom:8px;">Detalle por año (completá USD, ARS, o ambos)</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Año 1</div>
+    <div class="frow"><div class="fg"><label class="fl">USD/mes</label><input class="fi" type="number" id="ctr-a1-usd" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">ARS/mes</label><input class="fi" type="number" id="ctr-a1-ars" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a1-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div style="font-size:10px;color:var(--muted);margin:8px 0 4px;">Año 2</div>
+    <div class="frow"><div class="fg"><label class="fl">USD/mes</label><input class="fi" type="number" id="ctr-a2-usd" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">ARS/mes</label><input class="fi" type="number" id="ctr-a2-ars" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a2-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div style="font-size:10px;color:var(--muted);margin:8px 0 4px;">Año 3</div>
+    <div class="frow"><div class="fg"><label class="fl">USD/mes</label><input class="fi" type="number" id="ctr-a3-usd" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">ARS/mes</label><input class="fi" type="number" id="ctr-a3-ars" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a3-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;font-weight:500;"><span>Total</span><span class="mono" id="ctr-total-display">—</span></div>
   </div>
   <div class="fg" style="margin-top:10px;"><label class="fl">Notas</label><input class="fi" type="text" id="ctr-notas" placeholder="Detalles del contrato"></div>
   <div style="margin-top:12px;padding:12px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);">
@@ -2463,24 +2466,39 @@ async function renderContratoBloque(c){
   var saldoCobrar=totalContrato-totalCobrado;
   var totalCuotas=getTotalCuotas(c);
   var años=[];
-  if(c.a1_monto&&c.a1_cuotas)años.push({l:'Año 1',m:c.a1_monto,q:c.a1_cuotas});
-  if(c.a2_monto&&c.a2_cuotas)años.push({l:'Año 2',m:c.a2_monto,q:c.a2_cuotas});
-  if(c.a3_monto&&c.a3_cuotas)años.push({l:'Año 3',m:c.a3_monto,q:c.a3_cuotas});
+  if((c.a1_monto_usd||c.a1_monto_ars)&&c.a1_cuotas)años.push({l:'Año 1',usd:c.a1_monto_usd,ars:c.a1_monto_ars,q:c.a1_cuotas});
+  if((c.a2_monto_usd||c.a2_monto_ars)&&c.a2_cuotas)años.push({l:'Año 2',usd:c.a2_monto_usd,ars:c.a2_monto_ars,q:c.a2_cuotas});
+  if((c.a3_monto_usd||c.a3_monto_ars)&&c.a3_cuotas)años.push({l:'Año 3',usd:c.a3_monto_usd,ars:c.a3_monto_ars,q:c.a3_cuotas});
+  // Fallback: si no hay duales, usar campo legacy a1_monto
+  if(!años.length){
+    if(c.a1_monto&&c.a1_cuotas)años.push({l:'Año 1',usd:c.moneda!=='ARS'?c.a1_monto:null,ars:c.moneda==='ARS'?c.a1_monto:null,q:c.a1_cuotas});
+    if(c.a2_monto&&c.a2_cuotas)años.push({l:'Año 2',usd:c.moneda!=='ARS'?c.a2_monto:null,ars:c.moneda==='ARS'?c.a2_monto:null,q:c.a2_cuotas});
+    if(c.a3_monto&&c.a3_cuotas)años.push({l:'Año 3',usd:c.moneda!=='ARS'?c.a3_monto:null,ars:c.moneda==='ARS'?c.a3_monto:null,q:c.a3_cuotas});
+  }
+  function _fmtDual(usd,ars){var p=[];if(usd)p.push(fmtUSD(usd));if(ars)p.push('$ '+Math.round(Number(ars)).toLocaleString('es-AR'));return p.join(' + ')||'—';}
   var titulo=c.tipo+' '+(c.local||'')+' — '+c.nombre;
+  // Totales separados por moneda
+  var totUSD=0,totARS=0;
+  años.forEach(function(a){totUSD+=(Number(a.usd)||0)*a.q;totARS+=(Number(a.ars)||0)*a.q;});
+  // Cobrados separados
+  var cobUSD=cobrados.filter(function(x){return (x.moneda||'USD')==='USD';}).reduce(function(s,x){return s+Number(x.monto||0);},0);
+  var cobARS=cobrados.filter(function(x){return x.moneda==='ARS';}).reduce(function(s,x){return s+Number(x.monto||0);},0);
   var _fm=function(n){return fmtMon(n,c.moneda);};
+  var esMixto=totUSD>0&&totARS>0;
   var h='<div class="card" style="margin-top:12px;">'+
-    '<div class="ch"><div class="ct">'+titulo+'</div><span class="badge bb">En cobro</span>'+(c.moneda==='ARS'?'<span class="badge ba" style="font-size:10px;margin-left:4px;">ARS</span>':'')+'</div>'+
+    '<div class="ch"><div class="ct">'+titulo+'</div><span class="badge bb">En cobro</span>'+(esMixto?'<span class="badge ba" style="font-size:10px;margin-left:4px;">USD+ARS</span>':(totARS>0&&!totUSD?'<span class="badge ba" style="font-size:10px;margin-left:4px;">ARS</span>':''))+'</div>'+
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);">'+
-      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Precio total</div><div style="font-weight:500;" class="mono">'+_fm(totalContrato)+'</div></div>'+
-      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Total cobrado</div><div style="font-weight:500;color:var(--green);" class="mono">'+_fm(totalCobrado)+'</div></div>'+
-      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Saldo a cobrar</div><div style="font-weight:500;color:var(--amber);" class="mono">'+_fm(saldoCobrar)+'</div></div>'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Precio total</div><div style="font-weight:500;" class="mono">'+_fmtDual(totUSD,totARS)+'</div></div>'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Cobrado</div><div style="font-weight:500;color:var(--green);" class="mono">'+_fmtDual(cobUSD,cobARS)+'</div></div>'+
+      '<div style="padding:12px 16px;border-right:1px solid var(--border);"><div class="ml">Saldo</div><div style="font-weight:500;color:var(--amber);" class="mono">'+_fmtDual(totUSD-cobUSD>0?totUSD-cobUSD:0,totARS-cobARS>0?totARS-cobARS:0)+'</div></div>'+
       '<div style="padding:12px 16px;"><div class="ml">Plazo</div><div style="font-weight:500;">'+años.length+' año'+(años.length>1?'s':'')+' · '+totalCuotas+' cuotas</div></div>'+
     '</div>';
-  // Detalle por año
   if(años.length>0){
     h+='<div style="padding:12px 16px;border-top:1px solid var(--border);">';
     años.forEach(function(a){
-      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--muted);">'+a.l+': '+a.q+' cuotas × '+_fm(a.m)+'</span><span class="mono" style="font-weight:500;">'+_fm(a.m*a.q)+'</span></div>';
+      var montoStr=_fmtDual(a.usd,a.ars);
+      var totalStr=_fmtDual(a.usd?(Number(a.usd)*a.q):0,a.ars?(Number(a.ars)*a.q):0);
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--muted);">'+a.l+': '+a.q+' cuotas × '+montoStr+'</span><span class="mono" style="font-weight:500;">'+totalStr+'</span></div>';
     });
     h+='</div>';
   }
@@ -2495,9 +2513,16 @@ async function renderContratoBloque(c){
 
 function renderContratoCard(c){
   var años=[];
-  if(c.a1_monto&&c.a1_cuotas)años.push({label:'Año 1',m:c.a1_monto,q:c.a1_cuotas});
-  if(c.a2_monto&&c.a2_cuotas)años.push({label:'Año 2',m:c.a2_monto,q:c.a2_cuotas});
-  if(c.a3_monto&&c.a3_cuotas)años.push({label:'Año 3',m:c.a3_monto,q:c.a3_cuotas});
+  if((c.a1_monto_usd||c.a1_monto_ars)&&c.a1_cuotas)años.push({label:'Año 1',usd:c.a1_monto_usd,ars:c.a1_monto_ars,q:c.a1_cuotas});
+  if((c.a2_monto_usd||c.a2_monto_ars)&&c.a2_cuotas)años.push({label:'Año 2',usd:c.a2_monto_usd,ars:c.a2_monto_ars,q:c.a2_cuotas});
+  if((c.a3_monto_usd||c.a3_monto_ars)&&c.a3_cuotas)años.push({label:'Año 3',usd:c.a3_monto_usd,ars:c.a3_monto_ars,q:c.a3_cuotas});
+  // Fallback legacy
+  if(!años.length){
+    if(c.a1_monto&&c.a1_cuotas)años.push({label:'Año 1',usd:c.moneda!=='ARS'?c.a1_monto:null,ars:c.moneda==='ARS'?c.a1_monto:null,q:c.a1_cuotas});
+    if(c.a2_monto&&c.a2_cuotas)años.push({label:'Año 2',usd:c.moneda!=='ARS'?c.a2_monto:null,ars:c.moneda==='ARS'?c.a2_monto:null,q:c.a2_cuotas});
+    if(c.a3_monto&&c.a3_cuotas)años.push({label:'Año 3',usd:c.moneda!=='ARS'?c.a3_monto:null,ars:c.moneda==='ARS'?c.a3_monto:null,q:c.a3_cuotas});
+  }
+  function _fd(u,a){var p=[];if(u)p.push(fmtUSD(u));if(a)p.push('$ '+Math.round(Number(a)).toLocaleString('es-AR'));return p.join(' + ')||'—';}
   var cJson=JSON.stringify(c).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
   var h='<div style="padding:14px 16px;border-bottom:2px solid var(--text);">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;">'+
@@ -2508,9 +2533,12 @@ function renderContratoCard(c){
   if(años.length>0){
     h+='<div style="margin-top:8px;">';
     años.forEach(function(a){
-      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--muted);">'+a.label+': '+fmtMon(a.m,c.moneda)+' × '+a.q+' cuotas</span><span class="mono" style="font-weight:500;">'+fmtMon(a.m*a.q,c.moneda)+'</span></div>';
+      var montoStr=_fd(a.usd,a.ars);
+      var totalStr=_fd(a.usd?(Number(a.usd)*a.q):0,a.ars?(Number(a.ars)*a.q):0);
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--muted);">'+a.label+': '+montoStr+' × '+a.q+' cuotas</span><span class="mono" style="font-weight:500;">'+totalStr+'</span></div>';
     });
-    h+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 0;border-top:1px solid var(--border);margin-top:4px;font-weight:500;"><span>Total</span><span class="mono" style="color:var(--green);">'+fmtMon(c.monto_total||0,c.moneda)+'</span></div>';
+    var tU=0,tA=0;años.forEach(function(a){tU+=(Number(a.usd)||0)*a.q;tA+=(Number(a.ars)||0)*a.q;});
+    h+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 0;border-top:1px solid var(--border);margin-top:4px;font-weight:500;"><span>Total</span><span class="mono" style="color:var(--green);">'+_fd(tU,tA)+'</span></div>';
     h+='</div>';
   } else if(c.monto_total){
     h+='<div style="font-size:13px;margin-top:6px;" class="mono">Total: '+fmtMon(c.monto_total,c.moneda)+'</div>';
@@ -2529,23 +2557,18 @@ function renderContratoCard(c){
   return h;
 }
 
-function actualizarLabelsMoneda(){
-  var m=$$('ctr-moneda').value;
-  var labels=document.querySelectorAll('[data-moneda-label]');
-  labels.forEach(function(el){el.textContent='Año '+el.getAttribute('data-moneda-label')+' — '+m+'/mes';});
-  var totalEl=$$('ctr-total-display');
-  if(totalEl)calcTotalContrato();
-}
-
 function calcTotalContrato(){
-  var t=0;
+  var tUSD=0,tARS=0;
   for(var i=1;i<=3;i++){
-    var m=parseFloat($$('ctr-a'+i+'-monto').value)||0;
+    var usd=parseFloat($$('ctr-a'+i+'-usd').value)||0;
+    var ars=parseFloat($$('ctr-a'+i+'-ars').value)||0;
     var c=parseInt($$('ctr-a'+i+'-cuotas').value)||0;
-    t+=m*c;
+    tUSD+=usd*c; tARS+=ars*c;
   }
-  var mon=$$('ctr-moneda').value;
-  $$('ctr-total-display').textContent=mon==='ARS'?'$ '+t.toLocaleString('es-AR'):fmtUSD(t);
+  var parts=[];
+  if(tUSD>0)parts.push(fmtUSD(tUSD));
+  if(tARS>0)parts.push('$ '+Math.round(tARS).toLocaleString('es-AR'));
+  $$('ctr-total-display').textContent=parts.join(' + ')||'—';
 }
 
 function abrirEditContrato(ctr){
@@ -2556,18 +2579,17 @@ function abrirEditContrato(ctr){
   $$('ctr-local').value=ctr.local||'Local 1';
   $$('ctr-nombre').value=ctr.nombre||'';
   $$('ctr-tipo').value=ctr.tipo||'Alquiler';
-  $$('ctr-moneda').value=ctr.moneda||'USD';
   $$('ctr-ajuste').value=ctr.tipo_ajuste||'sin_ajuste';
   $$('ctr-periodicidad').value=ctr.periodicidad_ajuste||'trimestral';
-  $$('ctr-periodicidad-wrap').style.display=(ctr.tipo_ajuste&&ctr.tipo_ajuste!=='sin_ajuste')?'block':'none';
+  $$('ctr-ajuste-wrap').style.display=(ctr.tipo_ajuste&&ctr.tipo_ajuste!=='sin_ajuste')?'block':'none';
+  $$('ctr-ajuste-aplica').value=ctr.ajuste_aplica_a||'ambas';
   $$('ctr-inicio').value=ctr.fecha_inicio||'';
   $$('ctr-fin').value=ctr.fecha_fin||'';
-  $$('ctr-a1-monto').value=ctr.a1_monto||'';$$('ctr-a1-cuotas').value=ctr.a1_cuotas||12;
-  $$('ctr-a2-monto').value=ctr.a2_monto||'';$$('ctr-a2-cuotas').value=ctr.a2_cuotas||12;
-  $$('ctr-a3-monto').value=ctr.a3_monto||'';$$('ctr-a3-cuotas').value=ctr.a3_cuotas||12;
+  $$('ctr-a1-usd').value=ctr.a1_monto_usd||'';$$('ctr-a1-ars').value=ctr.a1_monto_ars||'';$$('ctr-a1-cuotas').value=ctr.a1_cuotas||12;
+  $$('ctr-a2-usd').value=ctr.a2_monto_usd||'';$$('ctr-a2-ars').value=ctr.a2_monto_ars||'';$$('ctr-a2-cuotas').value=ctr.a2_cuotas||12;
+  $$('ctr-a3-usd').value=ctr.a3_monto_usd||'';$$('ctr-a3-ars').value=ctr.a3_monto_ars||'';$$('ctr-a3-cuotas').value=ctr.a3_cuotas||12;
   $$('ctr-notas').value=ctr.notas||'';
   calcTotalContrato();
-  actualizarLabelsMoneda();
   $$('m-contrato').classList.add('open');
 }
 
@@ -2575,13 +2597,12 @@ function resetModalContrato(){
   $$('ctr-edit-id').value='';
   $$('ctr-title').textContent='Nuevo contrato adherido';
   $$('btn-guardar-contrato').textContent='Crear contrato';
-  ['ctr-nombre','ctr-notas','ctr-inicio','ctr-fin','ctr-a1-monto','ctr-a2-monto','ctr-a3-monto'].forEach(function(id){$$(id).value='';});
+  ['ctr-nombre','ctr-notas','ctr-inicio','ctr-fin','ctr-a1-usd','ctr-a1-ars','ctr-a2-usd','ctr-a2-ars','ctr-a3-usd','ctr-a3-ars'].forEach(function(id){$$(id).value='';});
   ['ctr-a1-cuotas','ctr-a2-cuotas','ctr-a3-cuotas'].forEach(function(id){$$(id).value='12';});
-  $$('ctr-moneda').value='USD';
   $$('ctr-ajuste').value='sin_ajuste';
   $$('ctr-periodicidad').value='trimestral';
-  $$('ctr-periodicidad-wrap').style.display='none';
-  actualizarLabelsMoneda();
+  $$('ctr-ajuste-wrap').style.display='none';
+  $$('ctr-ajuste-aplica').value='ambas';
   calcTotalContrato();
   _adjuntosPendientes=[];
   renderAdjuntosPreview();
@@ -2593,28 +2614,29 @@ async function guardarContrato(){
   var btn=$$('btn-guardar-contrato');
   btn.disabled=true;var _btnTxt=btn.textContent;btn.textContent='Guardando…';
   try{
-    var a1m=parseFloat($$('ctr-a1-monto').value)||0, a1c=parseInt($$('ctr-a1-cuotas').value)||0;
-    var a2m=parseFloat($$('ctr-a2-monto').value)||0, a2c=parseInt($$('ctr-a2-cuotas').value)||0;
-    var a3m=parseFloat($$('ctr-a3-monto').value)||0, a3c=parseInt($$('ctr-a3-cuotas').value)||0;
-    var totalContrato=a1m*a1c+a2m*a2c+a3m*a3c;
+    var a1u=parseFloat($$('ctr-a1-usd').value)||0, a1a=parseFloat($$('ctr-a1-ars').value)||0, a1c=parseInt($$('ctr-a1-cuotas').value)||0;
+    var a2u=parseFloat($$('ctr-a2-usd').value)||0, a2a=parseFloat($$('ctr-a2-ars').value)||0, a2c=parseInt($$('ctr-a2-cuotas').value)||0;
+    var a3u=parseFloat($$('ctr-a3-usd').value)||0, a3a=parseFloat($$('ctr-a3-ars').value)||0, a3c=parseInt($$('ctr-a3-cuotas').value)||0;
+    var totalUSD=a1u*a1c+a2u*a2c+a3u*a3c;
+    var totalARS=a1a*a1c+a2a*a2c+a3a*a3c;
     var obra=$$('ctr-obra').value;
     var local=$$('ctr-local').value;
     var proyecto=obra+(local!=='Otro'?' — '+local:'');
-    var moneda=$$('ctr-moneda').value||'USD';
     var tipoAjuste=$$('ctr-ajuste').value||'sin_ajuste';
     var periodicidad=$$('ctr-periodicidad').value||'trimestral';
+    var ajusteAplicaA=$$('ctr-ajuste-aplica').value||'ambas';
     var contratoData={
       proyecto:proyecto,obra:obra,local:local,nombre:nombre,
       tipo:$$('ctr-tipo').value,
-      moneda:moneda,
       tipo_ajuste:tipoAjuste,
       periodicidad_ajuste:tipoAjuste!=='sin_ajuste'?periodicidad:null,
+      ajuste_aplica_a:tipoAjuste!=='sin_ajuste'?ajusteAplicaA:null,
       fecha_inicio:$$('ctr-inicio').value||null,
       fecha_fin:$$('ctr-fin').value||null,
-      a1_monto:a1m||null,a1_cuotas:a1c||null,
-      a2_monto:a2m||null,a2_cuotas:a2c||null,
-      a3_monto:a3m||null,a3_cuotas:a3c||null,
-      monto_total:totalContrato||null,
+      a1_monto:a1u||a1a||null, a1_monto_usd:a1u||null, a1_monto_ars:a1a||null, a1_cuotas:a1c||null,
+      a2_monto:a2u||a2a||null, a2_monto_usd:a2u||null, a2_monto_ars:a2a||null, a2_cuotas:a2c||null,
+      a3_monto:a3u||a3a||null, a3_monto_usd:a3u||null, a3_monto_ars:a3a||null, a3_cuotas:a3c||null,
+      monto_total:totalUSD||totalARS||null,
       notas:$$('ctr-notas').value||null,
       activo:true
     };
@@ -2660,32 +2682,32 @@ async function generarCobrosContrato(contratoId,c){
   var fechaBase=c.fecha_inicio?new Date(c.fecha_inicio+'T12:00:00'):new Date();
   var cuotaNum=0;
   var años=[
-    {monto:c.a1_monto,cuotas:c.a1_cuotas,label:'Año 1'},
-    {monto:c.a2_monto,cuotas:c.a2_cuotas,label:'Año 2'},
-    {monto:c.a3_monto,cuotas:c.a3_cuotas,label:'Año 3'}
+    {usd:c.a1_monto_usd,ars:c.a1_monto_ars,cuotas:c.a1_cuotas,label:'Año 1'},
+    {usd:c.a2_monto_usd,ars:c.a2_monto_ars,cuotas:c.a2_cuotas,label:'Año 2'},
+    {usd:c.a3_monto_usd,ars:c.a3_monto_ars,cuotas:c.a3_cuotas,label:'Año 3'}
   ];
+  var totalC=getTotalCuotas(c);
   for(var a=0;a<años.length;a++){
-    if(!años[a].monto||!años[a].cuotas)continue;
+    if(!años[a].cuotas||(!(años[a].usd)&&!(años[a].ars)))continue;
     for(var i=0;i<años[a].cuotas;i++){
       cuotaNum++;
       var fechaCuota=new Date(fechaBase);
       fechaCuota.setMonth(fechaBase.getMonth()+cuotaNum-1);
       var fechaStr=fechaCuota.toISOString().split('T')[0];
-      cobros.push({
-        concepto:c.tipo+' '+c.nombre+' — Cuota '+cuotaNum+'/'+getTotalCuotas(c)+' ('+años[a].label+')',
-        proyecto:c.proyecto,
-        origen:c.nombre,
-        tipo:'alquiler',
-        monto:años[a].monto,
-        moneda:c.moneda||'USD',
-        fecha_pactada:fechaStr,
-        cobrado:false,
-        contrato_id:contratoId
-      });
+      var base={concepto:c.tipo+' '+c.nombre+' — Cuota '+cuotaNum+'/'+totalC+' ('+años[a].label+')',proyecto:c.proyecto,origen:c.nombre,tipo:'alquiler',fecha_pactada:fechaStr,cobrado:false,contrato_id:contratoId};
+      if(años[a].usd){
+        var cUSD=Object.assign({},base);cUSD.monto=años[a].usd;cUSD.moneda='USD';
+        if(años[a].ars)cUSD.concepto+=' [USD]';
+        cobros.push(cUSD);
+      }
+      if(años[a].ars){
+        var cARS=Object.assign({},base);cARS.monto=años[a].ars;cARS.moneda='ARS';
+        if(años[a].usd)cARS.concepto+=' [ARS]';
+        cobros.push(cARS);
+      }
     }
   }
   if(cobros.length>0){
-    // Marcar las que ya pasaron y no están cobradas como pendientes
     var {error}=await sb.from('cobros').insert(cobros);
     if(error)console.error('Error generando cobros:',error);
   }
