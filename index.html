@@ -208,7 +208,8 @@ tr:hover td{background:var(--s2);}
     <div class="ns">
       <div class="nsl">Gestión</div>
       <div class="ni" data-page="cobros" onclick="nav(this)"><div class="nd" style="background:#0f7a4a;"></div>Cobros</div>
-      <div class="ni" data-page="caja" onclick="nav(this)"><div class="nd" style="background:#1a4fd6;"></div>Caja USD</div>
+      <div class="ni" data-page="caja" onclick="window._cajaMoneda='USD';nav(this)"><div class="nd" style="background:#1a4fd6;"></div>Caja USD</div>
+      <div class="ni" data-page="caja" onclick="window._cajaMoneda='ARS';nav(this)"><div class="nd" style="background:#d97706;"></div>Caja ARS</div>
       <div class="ni" data-page="gastos" onclick="nav(this)"><div class="nd" style="background:#b81c1c;"></div>Gastos</div>
       <div class="ni" data-page="pagares" onclick="nav(this)"><div class="nd" style="background:#7c3aed;"></div>Pagarés<span class="nb" id="BC-PAG" style="display:none;"></span></div>
     </div>
@@ -303,7 +304,7 @@ tr:hover td{background:var(--s2);}
 <!-- CAJA USD -->
 <div id="p-caja" class="page">
   <div class="ph">
-    <div><div class="pt">Caja USD</div><div class="ps">Solo entra lo que vos confirmás</div></div>
+    <div><div class="pt" id="caja-titulo">Caja USD</div><div class="ps">Solo entra lo que vos confirmás</div></div>
     <div class="gap">
       <button class="btn" onclick="om('ingreso')">+ Ingreso</button>
       <button class="btn btnp" onclick="om('egreso')">+ Egreso</button>
@@ -546,12 +547,15 @@ tr:hover td{background:var(--s2);}
   <div class="fg"><label class="fl">Local</label><select class="fi" id="ctr-local"><option>Local 1</option><option>Local 2</option><option>Local 3</option><option>Local 4</option><option>UF2</option><option>Otro</option></select></div></div>
   <div class="fg"><label class="fl">Inquilino / Contrato</label><input class="fi" type="text" id="ctr-nombre" placeholder="Ej: Nicolás Radzinsky, Erra"></div>
   <div class="fg"><label class="fl">Tipo</label><select class="fi" id="ctr-tipo"><option>Alquiler</option><option>Venta en cuotas</option><option>Concesión</option><option>Comodato</option><option>Otro</option></select></div>
+  <div class="frow"><div class="fg"><label class="fl">Moneda</label><select class="fi" id="ctr-moneda" onchange="actualizarLabelsMoneda()"><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
+  <div class="fg"><label class="fl">Ajuste</label><select class="fi" id="ctr-ajuste" onchange="$$('ctr-periodicidad-wrap').style.display=this.value!=='sin_ajuste'?'block':'none'"><option value="sin_ajuste">Sin ajuste</option><option value="ipc">IPC</option><option value="otro">Otro índice</option></select></div></div>
+  <div id="ctr-periodicidad-wrap" style="display:none;"><div class="fg"><label class="fl">Periodicidad del ajuste</label><select class="fi" id="ctr-periodicidad"><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div></div>
   <div class="frow"><div class="fg"><label class="fl">Fecha inicio</label><input class="fi" type="date" id="ctr-inicio"></div><div class="fg"><label class="fl">Fecha fin</label><input class="fi" type="date" id="ctr-fin"></div></div>
   <div style="margin-top:10px;padding:12px;background:var(--s2);border-radius:var(--r);border:1px solid var(--border);">
     <div style="font-size:12px;font-weight:500;margin-bottom:8px;">Detalle por año</div>
-    <div class="frow"><div class="fg"><label class="fl">Año 1 — USD/mes</label><input class="fi" type="number" id="ctr-a1-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a1-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
-    <div class="frow"><div class="fg"><label class="fl">Año 2 — USD/mes</label><input class="fi" type="number" id="ctr-a2-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a2-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
-    <div class="frow"><div class="fg"><label class="fl">Año 3 — USD/mes</label><input class="fi" type="number" id="ctr-a3-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a3-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="1">Año 1 — USD/mes</label><input class="fi" type="number" id="ctr-a1-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a1-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="2">Año 2 — USD/mes</label><input class="fi" type="number" id="ctr-a2-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a2-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
+    <div class="frow"><div class="fg"><label class="fl" data-moneda-label="3">Año 3 — USD/mes</label><input class="fi" type="number" id="ctr-a3-monto" step="0.01" oninput="calcTotalContrato()"></div><div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="ctr-a3-cuotas" value="12" oninput="calcTotalContrato()"></div></div>
     <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;font-weight:500;"><span>Total contrato</span><span class="mono" id="ctr-total-display">U$D 0</span></div>
   </div>
   <div class="fg" style="margin-top:10px;"><label class="fl">Notas</label><input class="fi" type="text" id="ctr-notas" placeholder="Detalles del contrato"></div>
@@ -811,7 +815,7 @@ function nav(el){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   $$(('p-'+page)).classList.add('active');
   el.classList.add('active');
-  if(page==='caja')cargarMovimientos();
+  if(page==='caja'){cargarSaldo();cargarMovimientos();}
   if(page==='gastos')cargarGastos();
   if(page==='alarmas'){cargarAlarmasPage();chequearVencimientos().catch(()=>{});}
   if(page==='cobros')cargarCobrosPage();
@@ -823,20 +827,25 @@ function nav(el){
 // SUPABASE — CARGA DE DATOS
 // ═══════════════════════════════════════════════════
 
-async function calcularSaldo(){
-  const {data,error} = await sb.from('caja_movimientos').select('monto');
+async function calcularSaldo(moneda){
+  var m=moneda||'USD';
+  const {data,error} = await sb.from('caja_movimientos').select('monto').eq('moneda',m);
   if(error)return null;
   return data.reduce((s,r)=>s+Number(r.monto),0);
 }
 
 async function cargarSaldo(){
-  const saldo = await calcularSaldo();
+  const saldo = await calcularSaldo('USD');
   if(saldo===null)return;
   const s = fmtUSD(saldo);
   $$('m-saldo').textContent=s;
-  $$('caja-num').textContent=s;
-  // pendientes
-  const {data} = await sb.from('cobros').select('monto').eq('cobrado',false);
+  // Caja page: mostrar saldo de la moneda activa
+  var cajaM=window._cajaMoneda||'USD';
+  var saldoCaja=cajaM==='USD'?saldo:await calcularSaldo('ARS');
+  $$('caja-num').textContent=cajaM==='ARS'?'$ '+Math.round(saldoCaja||0).toLocaleString('es-AR'):fmtUSD(saldoCaja);
+  $$('caja-titulo').textContent='Caja '+cajaM;
+  // pendientes (solo USD)
+  const {data} = await sb.from('cobros').select('monto').eq('cobrado',false).eq('moneda','USD');
   if(data){
     const pend = data.reduce((s,r)=>s+Number(r.monto),0);
     $$('caja-pend-display').textContent = pend>0 ? '+ '+fmtUSD(pend) : 'U$D 0';
@@ -886,7 +895,8 @@ async function cargarCobros(){
 }
 
 async function cargarMovimientos(){
-  const {data,error} = await sb.from('caja_movimientos').select('*').order('fecha',{ascending:false}).limit(50);
+  var cajaM=window._cajaMoneda||'USD';
+  const {data,error} = await sb.from('caja_movimientos').select('*').eq('moneda',cajaM).order('fecha',{ascending:false}).limit(50);
   if(error||!data){$$('CAJAMOV').innerHTML='<div class="loading">Error al cargar</div>';return;}
   $$('CAJAMOV').innerHTML=`<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Ingreso</th><th>Egreso</th><th></th></tr></thead><tbody>${
     data.map(m=>{
@@ -1058,6 +1068,7 @@ async function ejecutarCobro(){
     const {error:e2} = await sb.from('caja_movimientos').insert({
       fecha:fecha, concepto:c.concepto+(esParcial?' (parcial)':'')+' · confirmado por '+USUARIO,
       tipo:c.tipo, monto:montoCobrado, proyecto:c.proyecto,
+      moneda:c.moneda||'USD',
       forma:forma, nota:nota, confirmado_por:USUARIO
     });
     if(e2){toast('Error en caja: '+e2.message,'err');btn.textContent='Confirmar cobro → entra a caja';btn.disabled=false;return;}
@@ -1317,6 +1328,7 @@ async function guardarMovimiento(){
   const fecha=$$('mov-fecha').value;
   const {error} = await sb.from('caja_movimientos').insert({
     fecha:fecha, concepto:concepto, tipo, monto,
+    moneda:window._cajaMoneda||'USD',
     proyecto:proyecto, confirmado_por:USUARIO
   });
   if(error){toast('Error: '+error.message,'err');return;}
@@ -2515,6 +2527,14 @@ function renderContratoCard(c){
   return h;
 }
 
+function actualizarLabelsMoneda(){
+  var m=$$('ctr-moneda').value;
+  var labels=document.querySelectorAll('[data-moneda-label]');
+  labels.forEach(function(el){el.textContent='Año '+el.getAttribute('data-moneda-label')+' — '+m+'/mes';});
+  var totalEl=$$('ctr-total-display');
+  if(totalEl)calcTotalContrato();
+}
+
 function calcTotalContrato(){
   var t=0;
   for(var i=1;i<=3;i++){
@@ -2522,7 +2542,8 @@ function calcTotalContrato(){
     var c=parseInt($$('ctr-a'+i+'-cuotas').value)||0;
     t+=m*c;
   }
-  $$('ctr-total-display').textContent=fmtUSD(t);
+  var mon=$$('ctr-moneda').value;
+  $$('ctr-total-display').textContent=mon==='ARS'?'$ '+t.toLocaleString('es-AR'):fmtUSD(t);
 }
 
 function abrirEditContrato(ctr){
@@ -2533,6 +2554,10 @@ function abrirEditContrato(ctr){
   $$('ctr-local').value=ctr.local||'Local 1';
   $$('ctr-nombre').value=ctr.nombre||'';
   $$('ctr-tipo').value=ctr.tipo||'Alquiler';
+  $$('ctr-moneda').value=ctr.moneda||'USD';
+  $$('ctr-ajuste').value=ctr.tipo_ajuste||'sin_ajuste';
+  $$('ctr-periodicidad').value=ctr.periodicidad_ajuste||'trimestral';
+  $$('ctr-periodicidad-wrap').style.display=(ctr.tipo_ajuste&&ctr.tipo_ajuste!=='sin_ajuste')?'block':'none';
   $$('ctr-inicio').value=ctr.fecha_inicio||'';
   $$('ctr-fin').value=ctr.fecha_fin||'';
   $$('ctr-a1-monto').value=ctr.a1_monto||'';$$('ctr-a1-cuotas').value=ctr.a1_cuotas||12;
@@ -2540,6 +2565,7 @@ function abrirEditContrato(ctr){
   $$('ctr-a3-monto').value=ctr.a3_monto||'';$$('ctr-a3-cuotas').value=ctr.a3_cuotas||12;
   $$('ctr-notas').value=ctr.notas||'';
   calcTotalContrato();
+  actualizarLabelsMoneda();
   $$('m-contrato').classList.add('open');
 }
 
@@ -2549,6 +2575,11 @@ function resetModalContrato(){
   $$('btn-guardar-contrato').textContent='Crear contrato';
   ['ctr-nombre','ctr-notas','ctr-inicio','ctr-fin','ctr-a1-monto','ctr-a2-monto','ctr-a3-monto'].forEach(function(id){$$(id).value='';});
   ['ctr-a1-cuotas','ctr-a2-cuotas','ctr-a3-cuotas'].forEach(function(id){$$(id).value='12';});
+  $$('ctr-moneda').value='USD';
+  $$('ctr-ajuste').value='sin_ajuste';
+  $$('ctr-periodicidad').value='trimestral';
+  $$('ctr-periodicidad-wrap').style.display='none';
+  actualizarLabelsMoneda();
   calcTotalContrato();
   _adjuntosPendientes=[];
   renderAdjuntosPreview();
@@ -2567,9 +2598,15 @@ async function guardarContrato(){
     var obra=$$('ctr-obra').value;
     var local=$$('ctr-local').value;
     var proyecto=obra+(local!=='Otro'?' — '+local:'');
+    var moneda=$$('ctr-moneda').value||'USD';
+    var tipoAjuste=$$('ctr-ajuste').value||'sin_ajuste';
+    var periodicidad=$$('ctr-periodicidad').value||'trimestral';
     var contratoData={
       proyecto:proyecto,obra:obra,local:local,nombre:nombre,
       tipo:$$('ctr-tipo').value,
+      moneda:moneda,
+      tipo_ajuste:tipoAjuste,
+      periodicidad_ajuste:tipoAjuste!=='sin_ajuste'?periodicidad:null,
       fecha_inicio:$$('ctr-inicio').value||null,
       fecha_fin:$$('ctr-fin').value||null,
       a1_monto:a1m||null,a1_cuotas:a1c||null,
@@ -2594,6 +2631,10 @@ async function guardarContrato(){
       if(error){toast('Error: '+error.message,'err');return;}
       var ctrId=insData[0].id;
       await generarCobrosContrato(ctrId,contratoData);
+      // Generar ajustes pendientes si tiene cláusula de ajuste
+      if(tipoAjuste!=='sin_ajuste'&&contratoData.fecha_inicio){
+        await generarAjustesPendientes(ctrId,contratoData.fecha_inicio,contratoData.fecha_fin,periodicidad,a1m);
+      }
       if(_adjuntosPendientes.length>0)await subirAdjuntosContrato(ctrId);
       toast('Contrato "'+nombre+'" creado ✓','ok2');
     }
@@ -2634,6 +2675,7 @@ async function generarCobrosContrato(contratoId,c){
         origen:c.nombre,
         tipo:'alquiler',
         monto:años[a].monto,
+        moneda:c.moneda||'USD',
         fecha_pactada:fechaStr,
         cobrado:false,
         contrato_id:contratoId
@@ -2644,6 +2686,32 @@ async function generarCobrosContrato(contratoId,c){
     // Marcar las que ya pasaron y no están cobradas como pendientes
     var {error}=await sb.from('cobros').insert(cobros);
     if(error)console.error('Error generando cobros:',error);
+  }
+}
+
+async function generarAjustesPendientes(contratoId,fechaInicio,fechaFin,periodicidad,montoInicial){
+  if(!fechaInicio)return;
+  var mesesPeriodo=periodicidad==='trimestral'?3:(periodicidad==='semestral'?6:12);
+  var inicio=new Date(fechaInicio+'T12:00:00');
+  var fin=fechaFin?new Date(fechaFin+'T12:00:00'):new Date(inicio);
+  if(!fechaFin)fin.setFullYear(fin.getFullYear()+3);
+  var ajustes=[];
+  var fecha=new Date(inicio);
+  fecha.setMonth(fecha.getMonth()+mesesPeriodo);
+  while(fecha<=fin){
+    ajustes.push({
+      contrato_id:contratoId,
+      fecha_prevista:fecha.toISOString().split('T')[0],
+      periodicidad:periodicidad,
+      monto_anterior:montoInicial,
+      estado:'pendiente'
+    });
+    fecha.setMonth(fecha.getMonth()+mesesPeriodo);
+  }
+  if(ajustes.length>0){
+    var {error}=await sb.from('contrato_ajustes').insert(ajustes);
+    if(error)console.error('Error generando ajustes:',error);
+    else console.log('Generados '+ajustes.length+' ajustes pendientes');
   }
 }
 
