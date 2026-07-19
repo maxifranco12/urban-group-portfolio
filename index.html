@@ -2439,24 +2439,31 @@ async function calcularFlujoCaja(){
 
 
 async function actualizarRentaDashboard(){
-  var totalMensual=0;
+  var totalUSD=0,totalARS=0;
   var nombres=[];
-  // Contratos activos en Supabase (incluye Fashion migrado)
   var {data}=await sb.from('contratos').select('*').eq('activo',true);
   if(data&&data.length>0){
     data.forEach(function(c){
       var ahora=new Date();
       var inicio=c.fecha_inicio?new Date(c.fecha_inicio+'T12:00:00'):ahora;
       var mesesDesdeInicio=Math.max(0,(ahora.getFullYear()-inicio.getFullYear())*12+(ahora.getMonth()-inicio.getMonth()));
-      var montoActual=0;
-      if(c.a1_cuotas&&mesesDesdeInicio<c.a1_cuotas){montoActual=c.a1_monto||0;}
-      else if(c.a2_cuotas&&mesesDesdeInicio<(c.a1_cuotas||0)+(c.a2_cuotas||0)){montoActual=c.a2_monto||0;}
-      else if(c.a3_monto){montoActual=c.a3_monto||0;}
-      else if(c.a1_monto){montoActual=c.a1_monto||0;}
-      if(montoActual>0){totalMensual+=montoActual;nombres.push(c.nombre);}
+      var usd=0,ars=0;
+      if(c.a1_cuotas&&mesesDesdeInicio<c.a1_cuotas){usd=Number(c.a1_monto_usd||0);ars=Number(c.a1_monto_ars||0);}
+      else if(c.a2_cuotas&&mesesDesdeInicio<(c.a1_cuotas||0)+(c.a2_cuotas||0)){usd=Number(c.a2_monto_usd||0);ars=Number(c.a2_monto_ars||0);}
+      else if(c.a3_monto_usd||c.a3_monto_ars){usd=Number(c.a3_monto_usd||0);ars=Number(c.a3_monto_ars||0);}
+      else{usd=Number(c.a1_monto_usd||0);ars=Number(c.a1_monto_ars||0);}
+      // Fallback legacy
+      if(!usd&&!ars&&c.a1_monto){
+        if(c.moneda==='ARS')ars=Number(c.a1_monto);
+        else usd=Number(c.a1_monto);
+      }
+      if(usd>0||ars>0){totalUSD+=usd;totalARS+=ars;nombres.push(c.nombre);}
     });
   }
-  $$('dash-renta').textContent=fmtUSD(totalMensual);
+  var parts=[];
+  if(totalUSD>0)parts.push(fmtUSD(totalUSD));
+  if(totalARS>0)parts.push('$ '+Math.round(totalARS).toLocaleString('es-AR'));
+  $$('dash-renta').textContent=parts.join(' + ')||'—';
   $$('dash-renta-sub').textContent=nombres.join(' · ')||'sin contratos';
 }
 
