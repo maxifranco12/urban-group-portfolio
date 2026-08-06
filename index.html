@@ -2467,6 +2467,72 @@ async function actualizarRentaDashboard(){
   $$('dash-renta-sub').textContent=nombres.join(' · ')||'sin contratos';
 }
 
+async function cargarRepartoTomi(){
+  var el=$$('reparto-tomi');
+  if(!el)return;
+  var {data}=await sb.from('reparto_ganancias').select('*').order('cuota_numero');
+  if(!data||!data.length){el.innerHTML='';return;}
+  var retiradas=data.filter(function(r){return r.estado==='retirada';});
+  var pendientes=data.filter(function(r){return r.estado==='pendiente';});
+  var acumulado=retiradas.reduce(function(s,r){return s+Number(r.monto);},0);
+  var total=data.length*Number(data[0].monto);
+  var faltan=pendientes.length;
+  // Resumen
+  var h='<div class="fr2"><span class="fk" style="font-weight:500;">Reparto de ganancias</span><span class="fv mono" style="color:var(--blue);">'+fmtUSD(acumulado)+' / '+fmtUSD(total)+'</span></div>';
+  h+='<div style="font-size:11px;color:var(--muted);margin:4px 0;">Retiradas: '+retiradas.length+' de '+data.length+' cuotas · <b style="color:var(--amber);">Faltan '+faltan+' cuotas de U$D 370 c/u</b></div>';
+  // Barra de progreso
+  var pct=Math.round((retiradas.length/data.length)*100);
+  h+='<div style="background:var(--border);border-radius:4px;height:6px;margin:6px 0;"><div style="background:var(--blue);height:100%;border-radius:4px;width:'+pct+'%;transition:width .3s;"></div></div>';
+  // Toggle detalle
+  h+='<div style="cursor:pointer;font-size:11px;color:var(--blue);margin-top:4px;" onclick="var d=this.nextElementSibling;d.style.display=d.style.display===\'none\'?\'block\':\'none\';this.textContent=d.style.display===\'none\'?\'▸ Ver cronograma completo\':\'▾ Ocultar cronograma\';">▸ Ver cronograma completo</div>';
+  h+='<div style="display:none;margin-top:8px;">';
+  data.forEach(function(r){
+    var esRet=r.estado==='retirada';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;">'+
+      '<div style="flex:1;">'+
+        '<span style="'+(esRet?'color:var(--green);':'color:var(--muted);')+'">Cuota '+r.cuota_numero+'/'+r.total_cuotas+'</span>'+
+        ' — '+fmtUSD(r.monto)+
+        (esRet?' · <span style="color:var(--green);">Retirada '+fmtFecha(r.fecha_retiro)+'</span>':' · <span style="color:var(--amber);">Pendiente</span>')+
+      '</div>'+
+      '<div>'+
+        (esRet?'<button class="btn btns" style="font-size:9px;padding:2px 6px;color:var(--red);" onclick="revertirRetiroTomi(\''+r.id+'\',\''+r.caja_mov_id+'\')">↩ Deshacer</button>':
+        '<button class="btn btns" style="font-size:9px;padding:2px 6px;color:var(--green);" onclick="marcarRetiroTomi(\''+r.id+'\','+r.cuota_numero+')">✓ Marcar retirada</button>')+
+      '</div>'+
+    '</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+async function marcarRetiroTomi(id,cuotaNum){
+  var fecha=prompt('Fecha del retiro (YYYY-MM-DD):',new Date().toISOString().split('T')[0]);
+  if(!fecha)return;
+  // 1. Crear egreso en caja
+  var {data:movData,error:e1}=await sb.from('caja_movimientos').insert({
+    fecha:fecha, concepto:'Reparto de ganancias — Tomi — cuota '+cuotaNum+'/24 — Cuenca Obra',
+    tipo:'egreso', monto:-370, moneda:'USD', proyecto:'Cuenca Obra',
+    confirmado_por:USUARIO
+  }).select();
+  if(e1){toast('Error: '+e1.message,'err');return;}
+  var movId=(movData&&movData[0])?movData[0].id:null;
+  // 2. Marcar cuota como retirada
+  await sb.from('reparto_ganancias').update({estado:'retirada',fecha_retiro:fecha,caja_mov_id:movId}).eq('id',id);
+  toast('✓ Cuota '+cuotaNum+' retirada — U$D 370 descontados de Caja USD','ok2');
+  cargarRepartoTomi();
+  cargarSaldo();
+}
+
+async function revertirRetiroTomi(id,cajaMovId){
+  if(!confirm('¿Revertir este retiro? Se eliminará el egreso de Caja USD.'))return;
+  // 1. Eliminar egreso de caja
+  if(cajaMovId)await sb.from('caja_movimientos').delete().eq('id',cajaMovId);
+  // 2. Volver a pendiente
+  await sb.from('reparto_ganancias').update({estado:'pendiente',fecha_retiro:null,caja_mov_id:null}).eq('id',id);
+  toast('Retiro revertido — egreso eliminado de Caja USD','ok2');
+  cargarRepartoTomi();
+  cargarSaldo();
+}
+
 async function renderContratoBloque(c){
   // Calcular cobros cobrados y pendientes de este contrato
   var {data:cobrosData}=await sb.from('cobros').select('*').eq('contrato_id',c.id).order('fecha_pactada');
@@ -2877,6 +2943,7 @@ async function VF(id){
           <div class="fr2"><span class="fk">Urban Group</span><span class="fv mono">73,91% — U$D 561.315</span></div>
           <div class="fr2"><span class="fk">Tomi (Lote 921 + obra)</span><span class="fv mono">26,09% — U$D 89.146</span></div>
           <div class="fr2"><span class="fk">Rentabilidad Tomi esperada</span><span class="fv mono" style="color:var(--green);">U$D 208.696 (1,34x)</span></div>
+          <div id="reparto-tomi" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);"><div style="color:var(--muted);font-size:11px;">Cargando reparto…</div></div>
         </div>
       </div>
       <div class="card">
@@ -2891,6 +2958,8 @@ async function VF(id){
           Cuotas cobradas: ene/feb/mar 2026 (U$D 9.000 c/u) · <b style="color:var(--amber);">Faltan 29 cuotas + 2 refuerzos</b> · Refuerzos: ene 2027 y ene 2028
         </div>
       </div>`;
+    // Cargar reparto de ganancias Tomi
+    cargarRepartoTomi();
     // Cargar contratos y renderizar bloques tipo "Venta Local 2"
     var _ctrLocales=await cargarContratos("Cuenca");
     for(var _ci=0;_ci<_ctrLocales.length;_ci++){
