@@ -308,6 +308,7 @@ tr:hover td{background:var(--s2);}
     <div class="gap">
       <button class="btn" onclick="om('ingreso')">+ Ingreso</button>
       <button class="btn btnp" onclick="om('egreso')">+ Egreso</button>
+      <button class="btn btns" onclick="abrirConversion()" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);">↔ Convertir</button>
     </div>
   </div>
   <div class="caja-top">
@@ -494,6 +495,26 @@ tr:hover td{background:var(--s2);}
 </div></div>
 
 <!-- MODAL GASTO -->
+<div class="ov" id="m-conversion"><div class="modal" style="max-width:440px;">
+  <div class="mt">Convertir divisas</div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Moneda origen</label><select class="fi" id="conv-origen" onchange="actualizarConversion()"><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
+    <div class="fg"><label class="fl">Moneda destino</label><input class="fi" id="conv-destino" readonly value="USD"></div>
+  </div>
+  <div class="fg"><label class="fl">Monto a convertir</label><input class="fi mono" type="number" id="conv-monto" step="0.01" oninput="actualizarConversion()"></div>
+  <div class="fg"><label class="fl">Tipo de cambio</label><input class="fi mono" type="number" id="conv-tc" step="0.01" oninput="actualizarConversion()"></div>
+  <div class="fg"><label class="fl">Monto resultante</label><div class="fi mono" id="conv-resultado" style="background:var(--s2);font-weight:500;color:var(--green);">—</div></div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="conv-fecha"></div>
+    <div class="fg"><label class="fl">Nota (opcional)</label><input class="fi" type="text" id="conv-nota" placeholder="Ej: Pase para reserva Terrada"></div>
+  </div>
+  <div id="conv-preview" style="display:none;padding:10px 12px;background:var(--amber-lt,#fef3c7);border:1px solid var(--amber);border-radius:var(--r);font-size:12px;margin:8px 0;"></div>
+  <div class="ma">
+    <button class="btn" onclick="cm('m-conversion')">Cancelar</button>
+    <button class="btn btnp" id="btn-conv" onclick="ejecutarConversion()">Confirmar conversión</button>
+  </div>
+</div></div>
+
 <div class="ov" id="m-gasto"><div class="modal">
 <div class="mt2" id="g-title">Registrar gasto</div>
 <input type="hidden" id="g-edit-id" value="">
@@ -911,8 +932,8 @@ async function cargarMovimientos(){
       const esEg=Number(m.monto)<0;
       return `<tr class="mov-row" data-tipo="${esEg?'eg':'ing'}">
         <td>${fmtFecha(m.fecha)}</td>
-        <td>${m.concepto||'—'}</td>
-        <td><span class="badge ${m.tipo==='aporte'?'bb':m.tipo==='pagare'?'bg':esEg?'br':'bg'}">${m.tipo}</span></td>
+        <td>${m.concepto||'—'}${(m.concepto||'').includes('Conversión')?'<span class="badge bb" style="font-size:8px;margin-left:4px;">↔</span>':''}</td>
+        <td><span class="badge ${(m.concepto||'').includes('Conversión')?'bb':m.tipo==='aporte'?'bb':m.tipo==='pagare'?'bg':esEg?'br':'bg'}">${(m.concepto||'').includes('Conversión')?'conversión':m.tipo}</span></td>
         <td class="mono ing">${!esEg?'+'+Number(m.monto).toLocaleString('es-AR'):''}</td>
         <td class="mono sal">${esEg?Number(m.monto).toLocaleString('es-AR'):''}</td>
         <td style="white-space:nowrap;"><button class="btn btns" style="margin-right:4px;" onclick="editarMovCaja('${m.id}','${(m.concepto||'').replace(/'/g,"\\'")}',${m.monto},'${m.fecha||''}')">✏️</button><button class="btn btns" style="background:var(--red-bg);color:var(--red);border-color:var(--red);" onclick="borrarMovCaja('${m.id}','${(m.concepto||'').replace(/'/g,"\\'")}',${m.monto})">🗑</button></td>
@@ -1325,6 +1346,80 @@ async function guardarGasto(){
   }
   }catch(e){toast('Error inesperado: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent=_origBtn;}
+}
+
+function abrirConversion(){
+  var cajaM=window._cajaMoneda||'USD';
+  $$('conv-origen').value=cajaM;
+  $$('conv-destino').value=cajaM==='ARS'?'USD':'ARS';
+  $$('conv-monto').value='';
+  $$('conv-tc').value='';
+  $$('conv-resultado').textContent='—';
+  $$('conv-fecha').value=new Date().toISOString().split('T')[0];
+  $$('conv-nota').value='';
+  $$('conv-preview').style.display='none';
+  $$('m-conversion').classList.add('open');
+}
+
+function actualizarConversion(){
+  var origen=$$('conv-origen').value;
+  $$('conv-destino').value=origen==='ARS'?'USD':'ARS';
+  var monto=parseFloat($$('conv-monto').value)||0;
+  var tc=parseFloat($$('conv-tc').value)||0;
+  var destino=$$('conv-destino').value;
+  if(monto>0&&tc>0){
+    var resultado=origen==='ARS'?monto/tc:monto*tc;
+    resultado=Math.round(resultado*100)/100;
+    $$('conv-resultado').textContent=fmtMon(resultado,destino);
+    $$('conv-preview').style.display='block';
+    $$('conv-preview').innerHTML='Vas a convertir <b>'+fmtMon(monto,origen)+'</b> a <b>'+fmtMon(resultado,destino)+'</b> al TC <b>'+tc.toLocaleString('es-AR')+'</b>. Se debitará de Caja '+origen+' y se acreditará en Caja '+destino+'.';
+  } else {
+    $$('conv-resultado').textContent='—';
+    $$('conv-preview').style.display='none';
+  }
+}
+
+async function ejecutarConversion(){
+  var btn=$$('btn-conv');btn.textContent='Procesando…';btn.disabled=true;
+  try{
+  var origen=$$('conv-origen').value;
+  var destino=$$('conv-destino').value;
+  var monto=parseFloat($$('conv-monto').value)||0;
+  var tc=parseFloat($$('conv-tc').value)||0;
+  var fecha=$$('conv-fecha').value;
+  var nota=$$('conv-nota').value;
+  if(monto<=0){toast('Ingresá un monto válido','err');return;}
+  if(tc<=0){toast('Ingresá un tipo de cambio válido','err');return;}
+  // Validar saldo
+  var saldoOrigen=await calcularSaldo(origen);
+  if(saldoOrigen<monto){toast('Saldo insuficiente en Caja '+origen+' ('+fmtMon(saldoOrigen,origen)+')','err');return;}
+  var resultado=origen==='ARS'?Math.round((monto/tc)*100)/100:Math.round((monto*tc)*100)/100;
+  var concepto='Conversión '+(nota?' — '+nota:'');
+  // 1. Egreso en caja origen
+  var {data:egData,error:e1}=await sb.from('caja_movimientos').insert({
+    fecha:fecha,concepto:'Conversión a '+destino+' (TC '+tc+')'+concepto,
+    tipo:'egreso',monto:-Math.abs(monto),moneda:origen,confirmado_por:USUARIO
+  }).select();
+  if(e1){toast('Error egreso: '+e1.message,'err');return;}
+  var egresoId=(egData&&egData[0])?egData[0].id:null;
+  // 2. Ingreso en caja destino
+  var {data:ingData,error:e2}=await sb.from('caja_movimientos').insert({
+    fecha:fecha,concepto:'Conversión desde '+origen+' (TC '+tc+')'+concepto,
+    tipo:'ingreso',monto:Math.abs(resultado),moneda:destino,confirmado_por:USUARIO
+  }).select();
+  if(e2){toast('Error ingreso: '+e2.message,'err');return;}
+  var ingresoId=(ingData&&ingData[0])?ingData[0].id:null;
+  // 3. Registro en conversiones_divisas
+  await sb.from('conversiones_divisas').insert({
+    fecha:fecha,moneda_origen:origen,monto_origen:monto,
+    moneda_destino:destino,monto_destino:resultado,tipo_cambio:tc,
+    nota:nota,movimiento_egreso_id:egresoId,movimiento_ingreso_id:ingresoId,
+    usuario:USUARIO
+  });
+  cm('m-conversion');
+  toast('✓ Conversión: '+fmtMon(monto,origen)+' → '+fmtMon(resultado,destino)+' (TC '+tc+')','ok2');
+  cargarSaldo();cargarMovimientos();
+  }finally{btn.textContent='Confirmar conversión';btn.disabled=false;}
 }
 
 async function guardarMovimiento(){
