@@ -190,9 +190,11 @@ tr:hover td{background:var(--s2);}
   <div class="lb">
     <div class="ll">Urban Group</div>
     <div class="ls">Portfolio inmobiliario</div>
-    <button class="lu" onclick="login('Maxi Franco','MF','Socio')"><div class="lun">Maxi Franco</div><div class="lur">Socio · acceso completo</div></button>
-    <button class="lu" onclick="login('Tomi Slauscius','TS','Socio')"><div class="lun">Tomi Slauscius</div><div class="lur">Socio · acceso completo</div></button>
-    <button class="lu" onclick="login('Lucía','LC','Contadora')"><div class="lun">Lucía</div><div class="lur">Contadora · acceso completo</div></button>
+    <div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="login-email" placeholder="tu@email.com"></div>
+    <div class="fg"><label class="fl">Contraseña</label><input class="fi" type="password" id="login-pass" placeholder="••••••" onkeydown="if(event.key==='Enter')loginAuth()"></div>
+    <div id="login-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:8px;"></div>
+    <button class="lu" onclick="loginAuth()" id="btn-login" style="justify-content:center;"><div class="lun">Ingresar</div></button>
+    <div style="text-align:center;margin-top:12px;"><a href="#" onclick="olvideClave();return false;" style="font-size:12px;color:var(--blue);">¿Olvidaste tu contraseña?</a></div>
   </div>
 </div>
 
@@ -223,6 +225,10 @@ tr:hover td{background:var(--s2);}
     <div class="ua">
       <div class="uav" id="SAV">MF</div>
       <div><div class="uname" id="SN">Maxi Franco</div><div class="urole" id="SR">Socio</div></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button class="btn btns" onclick="cambiarClaveModal()" style="font-size:10px;flex:1;">🔑 Cambiar clave</button>
+      <button class="btn btns" onclick="logoutAuth()" style="font-size:10px;flex:1;color:var(--red);border-color:var(--red);">Cerrar sesión</button>
     </div>
   </div>
 </aside>
@@ -735,6 +741,62 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 // ESTADO LOCAL
 // ═══════════════════════════════════════════════════
 let USUARIO = 'Maxi Franco';
+
+// Mapa de usuarios
+var AUTH_USERS={
+  'maxifranco12@gmail.com':{nombre:'Maxi Franco',ini:'MF',rol:'Socio'},
+  'tomasslauscius@gmail.com':{nombre:'Tomi Slauscius',ini:'TS',rol:'Socio'},
+  'luciapastori92@gmail.com':{nombre:'Lucía',ini:'LC',rol:'Contadora'}
+};
+
+// Auto-login si hay sesión
+(async function(){
+  var {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){
+    var u=AUTH_USERS[session.user.email]||{nombre:session.user.email,ini:'??',rol:'Usuario'};
+    login(u.nombre,u.ini,u.rol);
+  }
+})();
+
+async function loginAuth(){
+  var btn=$$('btn-login');btn.querySelector('.lun').textContent='Ingresando…';btn.disabled=true;
+  var email=$$('login-email').value.trim();
+  var pass=$$('login-pass').value;
+  $$('login-error').style.display='none';
+  if(!email||!pass){$$('login-error').textContent='Completá email y contraseña';$$('login-error').style.display='block';btn.querySelector('.lun').textContent='Ingresar';btn.disabled=false;return;}
+  var {data,error}=await sb.auth.signInWithPassword({email:email,password:pass});
+  if(error){$$('login-error').textContent=error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message;$$('login-error').style.display='block';btn.querySelector('.lun').textContent='Ingresar';btn.disabled=false;return;}
+  var u=AUTH_USERS[email]||{nombre:email.split('@')[0],ini:email.substring(0,2).toUpperCase(),rol:'Usuario'};
+  btn.querySelector('.lun').textContent='Ingresar';btn.disabled=false;
+  login(u.nombre,u.ini,u.rol);
+}
+
+async function logoutAuth(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  await sb.auth.signOut();
+  $$('AW').style.display='none';
+  $$('LW').style.display='flex';
+  $$('login-email').value='';$$('login-pass').value='';
+  $$('login-error').style.display='none';
+}
+
+async function olvideClave(){
+  var email=$$('login-email').value.trim();
+  if(!email){$$('login-error').textContent='Escribí tu email primero';$$('login-error').style.display='block';return;}
+  var {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+  if(error){$$('login-error').textContent=error.message;$$('login-error').style.display='block';return;}
+  $$('login-error').style.display='none';
+  alert('Te enviamos un email a '+email+' con un link para resetear tu contraseña. Revisá tu bandeja de entrada (y spam).');
+}
+
+function cambiarClaveModal(){
+  var nuevaClave=prompt('Nueva contraseña (mínimo 6 caracteres):');
+  if(!nuevaClave||nuevaClave.length<6){if(nuevaClave)toast('La contraseña debe tener al menos 6 caracteres','err');return;}
+  sb.auth.updateUser({password:nuevaClave}).then(function(res){
+    if(res.error){toast('Error: '+res.error.message,'err');return;}
+    toast('✓ Contraseña actualizada','ok2');
+  });
+}
 let pendKey = null;
 let pendCobros = [];
 
